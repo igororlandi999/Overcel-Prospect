@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0f0f0f" />
+  <title>Canton Fair Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ===================== APP WRAPPER ===================== -->
+  <div id="app">
+
+    <!-- TOP HEADER -->
+    <header id="top-header">
+      <button id="btn-back" class="btn-icon hidden" aria-label="Voltar">&#8592;</button>
+      <h1 id="header-title">Canton Fair</h1>
+      <button id="btn-header-action" class="btn-icon hidden" aria-label="Ação"></button>
+    </header>
+
+    <!-- MAIN CONTENT AREA (views rendered here) -->
+    <main id="main-content"></main>
+
+    <!-- BOTTOM NAVIGATION -->
+    <nav id="bottom-nav">
+      <button class="nav-item active" data-view="home">
+        <span class="nav-icon">&#9782;</span>
+        <span class="nav-label">Produtos</span>
+      </button>
+      <button class="nav-item" data-view="summary">
+        <span class="nav-icon">&#9998;</span>
+        <span class="nav-label">Resumo</span>
+      </button>
+      <button class="nav-item" data-view="suppliers">
+        <span class="nav-icon">&#128101;</span>
+        <span class="nav-label">Fornecedores</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- ===================== TEMPLATES ===================== -->
+
+  <!-- TEMPLATE: HOME / PRODUCT LIST -->
+  <template id="tpl-home">
+    <div class="view-home">
+
+      <!-- Search bar -->
+      <div class="search-bar-wrap">
+        <input type="search" id="search-input" placeholder="&#128269; Buscar produto ou fornecedor..." autocomplete="off" />
+      </div>
+
+      <!-- Filters row -->
+      <div class="filters-row">
+        <select id="filter-category">
+          <option value="">Todas categorias</option>
+          <option value="Cells">Cells</option>
+          <option value="Packs">Packs</option>
+          <option value="BMS">BMS</option>
+          <option value="Chargers">Chargers</option>
+          <option value="Power Banks">Power Banks</option>
+          <option value="Power Stations">Power Stations</option>
+          <option value="Solar / Energy Storage">Solar / Energy Storage</option>
+          <option value="Accessories">Accessories</option>
+          <option value="Other">Other</option>
+        </select>
+
+        <select id="filter-status">
+          <option value="">Todos status</option>
+          <option value="Discovered">Discovered</option>
+          <option value="Interesting">Interesting</option>
+          <option value="Review Later">Review Later</option>
+          <option value="Request Sample">Request Sample</option>
+          <option value="Negotiating">Negotiating</option>
+          <option value="Priority">Priority</option>
+          <option value="Discarded">Discarded</option>
+        </select>
+
+        <select id="filter-sort">
+          <option value="score">Maior score</option>
+          <option value="recent">Mais recentes</option>
+          <option value="urgency">Urgência</option>
+        </select>
+      </div>
+
+      <!-- Score range filter -->
+      <div class="score-filter-row">
+        <label>Score mínimo: <span id="score-filter-val">0</span></label>
+        <input type="range" id="filter-score" min="0" max="10" step="0.5" value="0" />
+      </div>
+
+      <!-- Product list -->
+      <div id="product-list" class="product-list"></div>
+
+      <!-- Empty state -->
+      <div id="empty-state" class="empty-state hidden">
+        <p>Nenhum produto encontrado.</p>
+        <button class="btn-primary" id="btn-empty-add">+ Adicionar primeiro produto</button>
+      </div>
+
+    </div>
+  </template>
+
+  <!-- TEMPLATE: ADD / EDIT PRODUCT FORM -->
+  <template id="tpl-product-form">
+    <form id="product-form" class="product-form" autocomplete="off">
+
+      <!-- SECTION 1: Basic Info -->
+      <div class="form-section">
+        <div class="form-section-header" data-toggle="section-basic">
+          <span>1. Informações Básicas</span>
+          <span class="toggle-arrow">&#9660;</span>
+        </div>
+        <div class="form-section-body" id="section-basic">
+
+          <div class="form-group">
+            <label>Nome do Produto *</label>
+            <input type="text" name="productName" placeholder="Ex: LFP 18650 3000mAh" required />
+          </div>
+
+          <div class="form-group">
+            <label>Fornecedor *</label>
+            <select name="supplierId" id="supplier-select" required>
+              <option value="">Selecionar fornecedor...</option>
+            </select>
+            <button type="button" class="btn-link" id="btn-new-supplier-inline">+ Novo fornecedor</button>
+          </div>
+
+          <div class="form-group">
+            <label>Categoria</label>
+            <select name="category">
+              <option value="">Selecionar...</option>
+              <option value="Cells">Cells</option>
+              <option value="Packs">Packs</option>
+              <option value="BMS">BMS</option>
+              <option value="Chargers">Chargers</option>
+              <option value="Power Banks">Power Banks</option>
+              <option value="Power Stations">Power Stations</option>
+              <option value="Solar / Energy Storage">Solar / Energy Storage</option>
+              <option value="Accessories">Accessories</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Aplicação</label>
+            <input type="text" name="application" placeholder="Ex: E-bike, UPS, Solar..." />
+          </div>
+
+          <div class="form-group">
+            <label>Diferencial Principal</label>
+            <textarea name="keyDifferential" rows="2" placeholder="O que torna este produto especial?"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Tipo de Marca</label>
+            <select name="brandType">
+              <option value="">Selecionar...</option>
+              <option value="Own Brand">Own Brand</option>
+              <option value="White Label">White Label</option>
+              <option value="OEM">OEM</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Status</label>
+            <select name="status">
+              <option value="Discovered">Discovered</option>
+              <option value="Interesting">Interesting</option>
+              <option value="Review Later">Review Later</option>
+              <option value="Request Sample">Request Sample</option>
+              <option value="Negotiating">Negotiating</option>
+              <option value="Priority">Priority</option>
+              <option value="Discarded">Discarded</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Urgência</label>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="urgency" value="low" /> Baixa</label>
+              <label class="radio-label"><input type="radio" name="urgency" value="medium" checked /> Média</label>
+              <label class="radio-label"><input type="radio" name="urgency" value="high" /> Alta</label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Próxima Ação</label>
+            <input type="text" name="nextAction" placeholder="Ex: Solicitar datasheet, agendar visita..." />
+          </div>
+
+          <div class="form-group">
+            <label>Foto do Produto</label>
+            <input type="file" name="photo" id="photo-input" accept="image/*" capture="environment" />
+            <div id="photo-preview" class="photo-preview hidden"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SECTION 2: Technical Info -->
+      <div class="form-section">
+        <div class="form-section-header" data-toggle="section-tech">
+          <span>2. Informações Técnicas</span>
+          <span class="toggle-arrow">&#9660;</span>
+        </div>
+        <div class="form-section-body collapsed" id="section-tech">
+
+          <div class="form-group">
+            <label>Química</label>
+            <input type="text" name="chemistry" placeholder="Ex: LFP, NMC, LiPo..." />
+          </div>
+
+          <div class="form-group">
+            <label>Formato</label>
+            <input type="text" name="format" placeholder="Ex: 18650, prismatic, pouch..." />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tensão Nominal (V)</label>
+              <input type="text" name="nominalVoltage" placeholder="Ex: 3.2V" />
+            </div>
+            <div class="form-group">
+              <label>Capacidade</label>
+              <input type="text" name="capacity" placeholder="Ex: 100Ah" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Corrente de Descarga</label>
+              <input type="text" name="dischargeCurrent" placeholder="Ex: 1C, 100A" />
+            </div>
+            <div class="form-group">
+              <label>Corrente de Pico</label>
+              <input type="text" name="peakCurrent" placeholder="Ex: 2C, 200A" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Ciclos de Vida</label>
+              <input type="text" name="cycleLife" placeholder="Ex: 2000+" />
+            </div>
+            <div class="form-group">
+              <label>Faixa de Temperatura</label>
+              <input type="text" name="temperatureRange" placeholder="Ex: -20°C ~ 60°C" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Proteções Incluídas</label>
+            <input type="text" name="protectionsIncluded" placeholder="Ex: OVP, UVP, OTP, SCP..." />
+          </div>
+
+          <div class="form-group">
+            <label>Certificações</label>
+            <div class="checkbox-group" id="certifications-group">
+              <label class="check-label"><input type="checkbox" name="certifications" value="UN38.3" /> UN38.3</label>
+              <label class="check-label"><input type="checkbox" name="certifications" value="MSDS" /> MSDS</label>
+              <label class="check-label"><input type="checkbox" name="certifications" value="CE" /> CE</label>
+              <label class="check-label"><input type="checkbox" name="certifications" value="RoHS" /> RoHS</label>
+              <label class="check-label"><input type="checkbox" name="certifications" value="IEC" /> IEC</label>
+              <label class="check-label"><input type="checkbox" name="certifications" value="Other" /> Other</label>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tem Datasheet?</label>
+              <div class="toggle-wrap">
+                <input type="checkbox" name="hasDatasheet" id="toggle-datasheet" class="toggle-input" />
+                <label for="toggle-datasheet" class="toggle-label"></label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Tem Test Reports?</label>
+              <div class="toggle-wrap">
+                <input type="checkbox" name="hasTestReports" id="toggle-testreports" class="toggle-input" />
+                <label for="toggle-testreports" class="toggle-label"></label>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SECTION 3: Commercial Info -->
+      <div class="form-section">
+        <div class="form-section-header" data-toggle="section-commercial">
+          <span>3. Informações Comerciais</span>
+          <span class="toggle-arrow">&#9660;</span>
+        </div>
+        <div class="form-section-body collapsed" id="section-commercial">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>MOQ</label>
+              <input type="text" name="moq" placeholder="Ex: 500 pcs" />
+            </div>
+            <div class="form-group">
+              <label>Preço Unitário (USD)</label>
+              <input type="text" name="unitPrice" placeholder="Ex: $12.50" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Faixa de Preço</label>
+            <input type="text" name="priceRange" placeholder="Ex: $10–$15 dependendo qtd." />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Lead Time</label>
+              <input type="text" name="leadTime" placeholder="Ex: 30 dias" />
+            </div>
+            <div class="form-group">
+              <label>Condições de Pagamento</label>
+              <input type="text" name="paymentTerms" placeholder="Ex: 30% T/T + 70%" />
+            </div>
+          </div>
+
+          <div class="form-row toggles-row">
+            <div class="form-group">
+              <label>Faz OEM?</label>
+              <div class="toggle-wrap">
+                <input type="checkbox" name="doesOEM" id="toggle-oem" class="toggle-input" />
+                <label for="toggle-oem" class="toggle-label"></label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Embalagem Custom?</label>
+              <div class="toggle-wrap">
+                <input type="checkbox" name="customPackaging" id="toggle-packaging" class="toggle-input" />
+                <label for="toggle-packaging" class="toggle-label"></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row toggles-row">
+            <div class="form-group">
+              <label>Exclusividade?</label>
+              <div class="toggle-wrap">
+                <input type="checkbox" name="exclusivityPossible" id="toggle-exclusivity" class="toggle-input" />
+                <label for="toggle-exclusivity" class="toggle-label"></label>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Amostra Disponível?</label>
+              <div class="toggle-wrap">
+                <input type="checkbox" name="sampleAvailable" id="toggle-sample" class="toggle-input" />
+                <label for="toggle-sample" class="toggle-label"></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Lead Time da Amostra</label>
+            <input type="text" name="sampleLeadTime" placeholder="Ex: 7 dias" />
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SECTION 4: Logistics -->
+      <div class="form-section">
+        <div class="form-section-header" data-toggle="section-logistics">
+          <span>4. Logística</span>
+          <span class="toggle-arrow">&#9660;</span>
+        </div>
+        <div class="form-section-body collapsed" id="section-logistics">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Peso</label>
+              <input type="text" name="weight" placeholder="Ex: 2.5 kg" />
+            </div>
+            <div class="form-group">
+              <label>Dimensões</label>
+              <input type="text" name="dimensions" placeholder="Ex: 200x100x50mm" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>HS Code</label>
+              <input type="text" name="hsCode" placeholder="Ex: 8507.60" />
+            </div>
+            <div class="form-group">
+              <label>Carga Perigosa?</label>
+              <div class="toggle-wrap">
+                <input type="checkbox" name="dangerousGoods" id="toggle-dangerous" class="toggle-input" />
+                <label for="toggle-dangerous" class="toggle-label"></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Tipo de Envio</label>
+            <div class="checkbox-group">
+              <label class="check-label"><input type="checkbox" name="shippingType" value="Air" /> Air</label>
+              <label class="check-label"><input type="checkbox" name="shippingType" value="Sea" /> Sea</label>
+              <label class="check-label"><input type="checkbox" name="shippingType" value="Courier" /> Courier</label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Complexidade de Importação</label>
+            <select name="importComplexity">
+              <option value="">Selecionar...</option>
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
+            </select>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SECTION 5: Scoring -->
+      <div class="form-section">
+        <div class="form-section-header" data-toggle="section-scoring">
+          <span>5. Avaliação (Score)</span>
+          <span class="toggle-arrow">&#9660;</span>
+        </div>
+        <div class="form-section-body collapsed" id="section-scoring">
+
+          <div class="score-preview-wrap">
+            <div class="score-circle" id="score-circle-form">
+              <span id="score-value-form">0.0</span>
+            </div>
+            <span class="score-label-hint">Score Final</span>
+          </div>
+
+          <div class="form-group slider-group">
+            <label>Diferenciação <span class="weight-tag">30%</span> <span class="slider-val" id="val-differentiation">5</span></label>
+            <input type="range" name="differentiation" min="0" max="10" step="1" value="5" data-score />
+          </div>
+
+          <div class="form-group slider-group">
+            <label>Potencial de Margem <span class="weight-tag">25%</span> <span class="slider-val" id="val-marginPotential">5</span></label>
+            <input type="range" name="marginPotential" min="0" max="10" step="1" value="5" data-score />
+          </div>
+
+          <div class="form-group slider-group">
+            <label>Fit com o Negócio <span class="weight-tag">20%</span> <span class="slider-val" id="val-businessFit">5</span></label>
+            <input type="range" name="businessFit" min="0" max="10" step="1" value="5" data-score />
+          </div>
+
+          <div class="form-group slider-group">
+            <label>Facilidade de Importar <span class="weight-tag">15%</span> <span class="slider-val" id="val-importEase">5</span></label>
+            <input type="range" name="importEase" min="0" max="10" step="1" value="5" data-score />
+          </div>
+
+          <div class="form-group slider-group">
+            <label>Confiança no Fornecedor <span class="weight-tag">10%</span> <span class="slider-val" id="val-supplierTrust">5</span></label>
+            <input type="range" name="supplierTrust" min="0" max="10" step="1" value="5" data-score />
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SECTION 6: Notes -->
+      <div class="form-section">
+        <div class="form-section-header" data-toggle="section-notes">
+          <span>6. Notas</span>
+          <span class="toggle-arrow">&#9660;</span>
+        </div>
+        <div class="form-section-body collapsed" id="section-notes">
+          <div class="form-group">
+            <textarea name="notes" rows="4" placeholder="Observações gerais, impressões, follow-ups..."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORM ACTIONS -->
+      <div class="form-actions">
+        <button type="submit" class="btn-primary btn-large">&#10003; Salvar Produto</button>
+        <button type="button" class="btn-secondary btn-large" id="btn-cancel-form">Cancelar</button>
+      </div>
+
+    </form>
+  </template>
+
+  <!-- TEMPLATE: PRODUCT DETAIL -->
+  <template id="tpl-product-detail">
+    <div class="view-detail" id="product-detail-view">
+      <!-- Rendered dynamically by JS -->
+    </div>
+  </template>
+
+  <!-- TEMPLATE: SUMMARY / INSIGHTS -->
+  <template id="tpl-summary">
+    <div class="view-summary">
+
+      <div class="summary-header">
+        <h2>Resumo da Feira</h2>
+      </div>
+
+      <div id="summary-stats" class="summary-stats">
+        <!-- Rendered by JS -->
+      </div>
+
+      <div class="summary-section">
+        <h3>&#127942; Top Produtos</h3>
+        <div id="summary-top-products"></div>
+      </div>
+
+      <div class="summary-section">
+        <h3>&#128203; Por Status</h3>
+        <div id="summary-by-status"></div>
+      </div>
+
+      <div class="summary-section">
+        <h3>&#128200; Por Categoria</h3>
+        <div id="summary-by-category"></div>
+      </div>
+
+      <div class="summary-section">
+        <h3>&#128680; Lista de Prioridades</h3>
+        <div id="summary-priority-list"></div>
+      </div>
+
+      <div class="summary-section export-section">
+        <h3>&#128229; Exportar Dados</h3>
+        <button class="btn-primary btn-large" id="btn-export-json">&#128196; Exportar JSON</button>
+        <button class="btn-secondary btn-large" id="btn-export-csv">&#128202; Exportar CSV</button>
+      </div>
+
+    </div>
+  </template>
+
+  <!-- TEMPLATE: SUPPLIERS LIST -->
+  <template id="tpl-suppliers">
+    <div class="view-suppliers">
+      <div id="suppliers-list" class="suppliers-list">
+        <!-- Rendered by JS -->
+      </div>
+      <div id="suppliers-empty" class="empty-state hidden">
+        <p>Nenhum fornecedor cadastrado.</p>
+      </div>
+    </div>
+  </template>
+
+  <!-- TEMPLATE: SUPPLIER FORM -->
+  <template id="tpl-supplier-form">
+    <form id="supplier-form" class="product-form" autocomplete="off">
+
+      <div class="form-group">
+        <label>Nome da Empresa *</label>
+        <input type="text" name="supplierName" placeholder="Ex: Shenzhen Battery Co." required />
+      </div>
+
+      <div class="form-group">
+        <label>Nome do Contato</label>
+        <input type="text" name="contactName" placeholder="Ex: David Li" />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>WeChat</label>
+          <input type="text" name="wechat" placeholder="ID WeChat" />
+        </div>
+        <div class="form-group">
+          <label>WhatsApp</label>
+          <input type="text" name="whatsapp" placeholder="+86..." />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>E-mail</label>
+        <input type="email" name="email" placeholder="contato@empresa.com" />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Estande (Booth)</label>
+          <input type="text" name="booth" placeholder="Ex: Hall 9.2 C15" />
+        </div>
+        <div class="form-group">
+          <label>Cidade</label>
+          <input type="text" name="city" placeholder="Ex: Shenzhen" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Website</label>
+        <input type="url" name="website" placeholder="https://..." />
+      </div>
+
+      <div class="form-group">
+        <label>Notas</label>
+        <textarea name="notes" rows="3" placeholder="Impressões gerais, reputação, observações..."></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary btn-large">&#10003; Salvar Fornecedor</button>
+        <button type="button" class="btn-secondary btn-large" id="btn-cancel-supplier">Cancelar</button>
+      </div>
+
+    </form>
+  </template>
+
+  <!-- FAB: Floating Add Button -->
+  <button id="fab-add" class="fab" aria-label="Adicionar produto">+</button>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
