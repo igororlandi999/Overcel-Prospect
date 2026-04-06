@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Canton Fair 138 — Log de Visitas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f1a;
+    --surface: #141826;
+    --surface2: #1c2235;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf2;
+    --muted: rgba(232,234,242,0.45);
+    --accent: #00d9a0;
+    --accent2: #0099d4;
+    --red: #ff5b5b;
+    --orange: #ffab40;
+    --green: #00d9a0;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 80px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+  .logo span { color: var(--accent); }
+  .sync-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .sync-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .sync-dot.ok { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .sync-dot.err { background: var(--red); }
+  .sync-dot.saving { background: var(--orange); animation: pulse 0.8s infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── TAB BAR ── */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0b0f1a;
+    font-weight: 700;
+  }
+  .tab .count {
+    display: inline-block;
+    margin-left: 5px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 10px;
+  }
+  .tab.active .count { background: rgba(0,0,0,0.2); }
+
+  /* ── MAIN ── */
+  .main { padding: 16px 16px 0; }
+
+  /* ── SECTION HEADER ── */
+  .section-label {
+    font-family: 'Syne', sans-serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 20px 0 10px;
+    font-weight: 600;
+  }
+
+  /* ── SUPPLIER CARD ── */
+  .supplier-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .supplier-card.expanded { border-color: var(--border2); }
+  .supplier-card.status-interesse { border-left: 3px solid var(--green); }
+  .supplier-card.status-seminteresse { border-left: 3px solid var(--red); }
+  .supplier-card.status-followup { border-left: 3px solid var(--orange); }
+  .supplier-card.status-fechado { border-left: 3px solid var(--accent2); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    padding: 13px 14px;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .card-prio {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .prio-alta { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .prio-media { background: var(--orange); }
+
+  .card-info { flex: 1; min-width: 0; }
+  .card-empresa {
+    font-weight: 500;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .status-pill {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .pill-vazio { background: rgba(255,255,255,0.06); color: var(--muted); }
+  .pill-interesse { background: rgba(0,217,160,0.15); color: var(--green); }
+  .pill-seminteresse { background: rgba(255,91,91,0.15); color: var(--red); }
+  .pill-followup { background: rgba(255,171,64,0.15); color: var(--orange); }
+  .pill-fechado { background: rgba(0,153,212,0.15); color: var(--accent2); }
+  .pill-visitado { background: rgba(255,255,255,0.1); color: var(--text); }
+
+  .chevron {
+    width: 16px; height: 16px;
+    color: var(--muted);
+    transition: transform 0.25s;
+    flex-shrink: 0;
+  }
+  .expanded .chevron { transform: rotate(180deg); }
+
+  /* ── CARD BODY ── */
+  .card-body {
+    display: none;
+    padding: 0 14px 14px;
+    border-top: 1px solid var(--border);
+  }
+  .expanded .card-body { display: block; }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .field-row.full { grid-template-columns: 1fr; }
+  .field-row.three { grid-template-columns: 1fr 1fr 1fr; }
+
+  .field label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 5px;
+    font-weight: 500;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 9px 11px;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus {
+    border-color: var(--accent);
+  }
+  .field select option { background: #1c2235; }
+  .field textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+
+  .save-btn {
+    margin-top: 12px;
+    width: 100%;
+    padding: 11px;
+    background: var(--accent);
+    color: #0b0f1a;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 0.5px;
+  }
+  .save-btn:active { transform: scale(0.98); opacity: 0.85; }
+  .save-btn.saving { opacity: 0.6; pointer-events: none; }
+
+  /* ── RESUMO ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 10px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text);
+  }
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    line-height: 1.3;
+  }
+  .stat-card.green .stat-num { color: var(--green); }
+  .stat-card.orange .stat-num { color: var(--orange); }
+  .stat-card.red .stat-num { color: var(--red); }
+
+  /* ── CONFIG ── */
+  .config-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .config-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+  .config-section input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 9px 11px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    outline: none;
+    margin-bottom: 10px;
+  }
+  .config-section input:focus { border-color: var(--accent); }
+  .config-btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .config-btn:hover { border-color: var(--accent); }
+  .config-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0b0f1a;
+    font-weight: 700;
+  }
+  .step-block {
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+  .step-block strong { color: var(--text); }
+  .step-block code {
+    background: rgba(0,217,160,0.1);
+    color: var(--accent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    word-break: break-all;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--accent); color: var(--accent); }
+  .toast.error { border-color: var(--red); color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo">Canton<span>Fair</span> 138</div>
+    <div class="sync-badge">
+      <div class="sync-dot" id="syncDot"></div>
+      <span id="syncLabel">Sem config</span>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('fase1')">Fase 1 <span class="count" id="cnt1">0</span></button>
+    <button class="tab" onclick="showTab('fase2')">Fase 2 <span class="count" id="cnt2">0</span></button>
+    <button class="tab" onclick="showTab('resumo')">Resumo</button>
+    <button class="tab" onclick="showTab('config')">Config</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- FASE 1 -->
+  <div id="tab-fase1">
+    <div id="cards-fase1"></div>
+  </div>
+
+  <!-- FASE 2 -->
+  <div id="tab-fase2" style="display:none">
+    <div id="cards-fase2"></div>
+  </div>
+
+  <!-- RESUMO -->
+  <div id="tab-resumo" style="display:none">
+    <div style="margin-top:8px">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-num" id="r-total">0</div><div class="stat-label">Total</div></div>
+        <div class="stat-card green"><div class="stat-num" id="r-interesse">0</div><div class="stat-label">Com interesse</div></div>
+        <div class="stat-card orange"><div class="stat-num" id="r-followup">0</div><div class="stat-label">Follow-up</div></div>
+        <div class="stat-card red"><div class="stat-num" id="r-sem">0</div><div class="stat-label">Sem interesse</div></div>
+      </div>
+      <div class="section-label">Visitas com interesse</div>
+      <div id="resumo-interesse"></div>
+      <div class="section-label">Follow-ups</div>
+      <div id="resumo-followup"></div>
+      <div class="section-label">Fechados</div>
+      <div id="resumo-fechado"></div>
+    </div>
+  </div>
+
+  <!-- CONFIG -->
+  <div id="tab-config" style="display:none">
+    <div style="margin-top:8px">
+      <div class="config-section">
+        <div class="config-title">Apps Script URL</div>
+        <input type="url" id="scriptUrl" placeholder="https://script.google.com/macros/s/..." />
+        <button class="config-btn primary" onclick="saveConfig()">Salvar e conectar</button>
+      </div>
+
+      <div class="config-section">
+        <div class="config-title">Como configurar</div>
+        <div class="step-block">
+          <strong>1.</strong> Crie um Google Sheet novo em qualquer conta Google.
+        </div>
+        <div class="step-block">
+          <strong>2.</strong> No Sheet: menu <strong>Extensoes &gt; Apps Script</strong>. Cole o codigo abaixo e clique em Salvar.
+        </div>
+        <div class="step-block">
+          <strong>3.</strong> Clique em <strong>Implantar &gt; Nova implantacao &gt; App da Web</strong>.<br>
+          Executar como: <strong>Eu</strong>.<br>
+          Quem tem acesso: <strong>Qualquer pessoa</strong>.<br>
+          Copie a URL gerada e cole aqui em cima.
+        </div>
+        <div class="step-block">
+          <strong>4.</strong> Cole a URL acima e clique em Salvar e conectar. Pronto.
+        </div>
+        <button class="config-btn" onclick="copyScript()">Copiar codigo do Apps Script</button>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">Ao clicar o codigo vai para a area de transferencia</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SCRIPT_CODE = `function doPost(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var data = JSON.parse(e.postData.contents);
+  var sheetName = data.fase === 1 ? "Fase1" : "Fase2";
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.appendRow(["ID","Empresa","Produto","Segmento","Dia","Zona","Hall","Booth","Contato","WeChat","Preco","MOQ","Prazo","Status","Proximo Passo","Observacoes","Timestamp"]);
+  }
+  var rows = sheet.getDataRange().getValues();
+  var idCol = 0;
+  var found = -1;
+  for (var i = 1; i < rows.length; i++) {
+    if (rows[i][idCol] == data.id) { found = i + 1; break; }
+  }
+  var row = [data.id, data.empresa, data.produto, data.segmento, data.dia, data.zona,
+             data.hall, data.booth, data.contato, data.wechat, data.preco,
+             data.moq, data.prazo, data.status, data.proximoPasso, data.obs,
+             new Date().toLocaleString("pt-BR")];
+  if (found > 0) {
+    sheet.getRange(found, 1, 1, row.length).setValues([row]);
+  } else {
+    sheet.appendRow(row);
+  }
+  return ContentService.createTextOutput(JSON.stringify({ok:true}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var result = {};
+  ["Fase1","Fase2"].forEach(function(name) {
+    var sheet = ss.getSheetByName(name);
+    if (!sheet) return;
+    var rows = sheet.getDataRange().getValues();
+    var headers = rows[0];
+    result[name] = rows.slice(1).map(function(r) {
+      var obj = {};
+      headers.forEach(function(h,i){ obj[h] = r[i]; });
+      return obj;
+    });
+  });
+  return ContentService.createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+// ─── DATA ───────────────────────────────────────────────────────────────────
+const SUPPLIERS = {
+  fase1: [
+    { id:"f1_01", dia:1, zona:"A", seg:"Células",    produto:"Lithium / Sodium", empresa:"EVE Energy",        prio:"alta" },
+    { id:"f1_02", dia:1, zona:"A", seg:"Células",    produto:"Lithium",          empresa:"BYD Battery",       prio:"alta" },
+    { id:"f1_03", dia:1, zona:"A", seg:"Células",    produto:"Lithium / Sodium", empresa:"Gotion High-Tech",  prio:"alta" },
+    { id:"f1_04", dia:1, zona:"A", seg:"Células",    produto:"Lithium",          empresa:"CALB",              prio:"alta" },
+    { id:"f1_05", dia:1, zona:"A", seg:"Células",    produto:"Lithium",          empresa:"Sunwoda",           prio:"alta" },
+    { id:"f1_06", dia:1, zona:"A", seg:"BMS",        produto:"Smart BMS",        empresa:"DALY",              prio:"alta" },
+    { id:"f1_07", dia:1, zona:"A", seg:"BMS",        produto:"Smart BMS",        empresa:"JBD / LLT",        prio:"alta" },
+    { id:"f1_08", dia:1, zona:"A", seg:"BMS",        produto:"Smart BMS",        empresa:"JK BMS",            prio:"alta" },
+    { id:"f1_09", dia:1, zona:"A", seg:"BMS",        produto:"BMS",              empresa:"ANT BMS",           prio:"media" },
+    { id:"f1_10", dia:1, zona:"A", seg:"BMS",        produto:"BMS",              empresa:"Jiabaida",          prio:"media" },
+    { id:"f1_11", dia:1, zona:"A", seg:"BMS",        produto:"BMS",              empresa:"Heltec Energy",     prio:"media" },
+    { id:"f1_12", dia:1, zona:"A", seg:"Carregador", produto:"25W PD",           empresa:"Aohai Technology",  prio:"alta" },
+    { id:"f1_13", dia:1, zona:"A", seg:"Carregador", produto:"25W PD",           empresa:"Huntkey",           prio:"alta" },
+    { id:"f1_14", dia:1, zona:"A", seg:"Carregador", produto:"25W PD",           empresa:"LDNIO",             prio:"media" },
+    { id:"f1_15", dia:1, zona:"A", seg:"Carregador", produto:"48V Bike",         empresa:"Diversos",          prio:"media" },
+    { id:"f1_16", dia:2, zona:"C", seg:"LED",        produto:"Transparente / Display", empresa:"MileStrong",  prio:"media" },
+    { id:"f1_17", dia:2, zona:"C", seg:"LED",        produto:"Display",          empresa:"Unilumin",          prio:"media" },
+    { id:"f1_18", dia:2, zona:"C", seg:"LED",        produto:"Display",          empresa:"Absen",             prio:"media" },
+    { id:"f1_19", dia:3, zona:"D", seg:"Equipamento",produto:"Resistance tester",empresa:"Diversos",          prio:"media" },
+    { id:"f1_20", dia:3, zona:"D", seg:"Equipamento",produto:"Maquina pack bateria",empresa:"Diversos",       prio:"media" },
+    { id:"f1_21", dia:3, zona:"D", seg:"Insumos",    produto:"Fish paper",       empresa:"Diversos",          prio:"alta" },
+    { id:"f1_22", dia:3, zona:"D", seg:"Insumos",    produto:"Isolante celula",  empresa:"Diversos",          prio:"alta" },
+    { id:"f1_23", dia:3, zona:"D", seg:"Insumos",    produto:"Anel isolante",    empresa:"Diversos",          prio:"alta" },
+    { id:"f1_24", dia:3, zona:"D", seg:"Case",       produto:"Case bateria ferramenta", empresa:"Diversos",   prio:"media" },
+  ],
+  fase2: [
+    { id:"f2_01", dia:4, zona:"D", seg:"Vinho",     produto:"Abridores",          empresa:"Yangjiang Win's", prio:"media" },
+    { id:"f2_02", dia:4, zona:"D", seg:"Vinho",     produto:"Abridores",          empresa:"Flyway",           prio:"media" },
+    { id:"f2_03", dia:4, zona:"D", seg:"Vinho",     produto:"Kits vinho",         empresa:"OEM diversos",     prio:"media" },
+    { id:"f2_04", dia:4, zona:"D", seg:"Vinho",     produto:"Dosadores / tampas", empresa:"OEM diversos",     prio:"media" },
+    { id:"f2_05", dia:5, zona:"D", seg:"Decoracao", produto:"Ripado aluminio",    empresa:"Foshan MexyTech",  prio:"media" },
+    { id:"f2_06", dia:5, zona:"D", seg:"Decoracao", produto:"Paineis decorativos",empresa:"Foshan OEM",       prio:"media" },
+    { id:"f2_07", dia:5, zona:"B", seg:"Papelao",   produto:"Chapa simples",      empresa:"Qingdao OEM",      prio:"alta" },
+    { id:"f2_08", dia:5, zona:"B", seg:"Papelao",   produto:"Chapa dupla",        empresa:"Shandong OEM",     prio:"alta" },
+    { id:"f2_09", dia:5, zona:"B", seg:"Papelao",   produto:"Fanfold",            empresa:"BEF / Sikon",      prio:"alta" },
+  ]
+};
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let visits = {};
+let scriptUrl = localStorage.getItem('canton_script_url') || '';
+let currentTab = 'fase1';
+
+const STATUS_LABELS = {
+  '': 'Nao visitado',
+  'visitado': 'Visitado',
+  'interesse': 'Com interesse',
+  'seminteresse': 'Sem interesse',
+  'followup': 'Follow-up',
+  'fechado': 'Fechado'
+};
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  if (scriptUrl) {
+    document.getElementById('scriptUrl').value = scriptUrl;
+    loadFromSheet();
+  }
+  renderAll();
+  updateCounts();
+});
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderFase('fase1');
+  renderFase('fase2');
+}
+
+function renderFase(fase) {
+  const list = SUPPLIERS[fase];
+  const container = document.getElementById('cards-' + fase);
+  
+  // group by dia
+  const byDia = {};
+  list.forEach(s => {
+    if (!byDia[s.dia]) byDia[s.dia] = [];
+    byDia[s.dia].push(s);
+  });
+
+  let html = '';
+  Object.keys(byDia).sort().forEach(dia => {
+    const first = byDia[dia][0];
+    html += `<div class="section-label">Dia ${dia} — Area ${first.zona}</div>`;
+    byDia[dia].forEach(s => {
+      const v = visits[s.id] || {};
+      const status = v.status || '';
+      const pillClass = status ? 'pill-' + status : 'pill-vazio';
+      const cardStatus = status ? 'status-' + status : '';
+      html += `
+      <div class="supplier-card ${cardStatus}" id="card-${s.id}">
+        <div class="card-header" onclick="toggleCard('${s.id}')">
+          <div class="card-prio prio-${s.prio}"></div>
+          <div class="card-info">
+            <div class="card-empresa">${s.empresa}</div>
+            <div class="card-meta">${s.seg} · ${s.produto}</div>
+          </div>
+          <div class="card-right">
+            <span class="status-pill ${pillClass}">${STATUS_LABELS[status]}</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="field-row three">
+            <div class="field">
+              <label>Hall</label>
+              <input type="text" id="${s.id}-hall" value="${v.hall||''}" placeholder="8.1" oninput="autoSave('${s.id}')">
+            </div>
+            <div class="field">
+              <label>Booth</label>
+              <input type="text" id="${s.id}-booth" value="${v.booth||''}" placeholder="A42" oninput="autoSave('${s.id}')">
+            </div>
+            <div class="field">
+              <label>Status</label>
+              <select id="${s.id}-status" onchange="autoSave('${s.id}')">
+                <option value="">--</option>
+                <option value="visitado" ${(v.status==='visitado')?'selected':''}>Visitado</option>
+                <option value="interesse" ${(v.status==='interesse')?'selected':''}>Com interesse</option>
+                <option value="seminteresse" ${(v.status==='seminteresse')?'selected':''}>Sem interesse</option>
+                <option value="followup" ${(v.status==='followup')?'selected':''}>Follow-up</option>
+                <option value="fechado" ${(v.status==='fechado')?'selected':''}>Fechado</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Contato</label>
+              <input type="text" id="${s.id}-contato" value="${v.contato||''}" placeholder="Nome" oninput="autoSave('${s.id}')">
+            </div>
+            <div class="field">
+              <label>WeChat</label>
+              <input type="text" id="${s.id}-wechat" value="${v.wechat||''}" placeholder="ID WeChat" oninput="autoSave('${s.id}')">
+            </div>
+          </div>
+          <div class="field-row three">
+            <div class="field">
+              <label>Preco (USD)</label>
+              <input type="text" id="${s.id}-preco" value="${v.preco||''}" placeholder="0.00" oninput="autoSave('${s.id}')">
+            </div>
+            <div class="field">
+              <label>MOQ</label>
+              <input type="text" id="${s.id}-moq" value="${v.moq||''}" placeholder="1000" oninput="autoSave('${s.id}')">
+            </div>
+            <div class="field">
+              <label>Prazo</label>
+              <input type="text" id="${s.id}-prazo" value="${v.prazo||''}" placeholder="30d" oninput="autoSave('${s.id}')">
+            </div>
+          </div>
+          <div class="field-row full">
+            <div class="field">
+              <label>Proximo passo</label>
+              <input type="text" id="${s.id}-proximoPasso" value="${v.proximoPasso||''}" placeholder="Enviar email com specs..." oninput="autoSave('${s.id}')">
+            </div>
+          </div>
+          <div class="field-row full">
+            <div class="field">
+              <label>Observacoes</label>
+              <textarea id="${s.id}-obs" placeholder="Notas da visita...">${v.obs||''}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    });
+  });
+
+  container.innerHTML = html;
+}
+
+// ─── CARD TOGGLE ─────────────────────────────────────────────────────────────
+function toggleCard(id) {
+  const card = document.getElementById('card-' + id);
+  card.classList.toggle('expanded');
+}
+
+// ─── AUTO SAVE ───────────────────────────────────────────────────────────────
+let saveTimers = {};
+function autoSave(id) {
+  clearTimeout(saveTimers[id]);
+  saveTimers[id] = setTimeout(() => saveVisit(id), 800);
+}
+
+function saveVisit(id) {
+  const supplier = [...SUPPLIERS.fase1, ...SUPPLIERS.fase2].find(s => s.id === id);
+  if (!supplier) return;
+
+  const get = field => {
+    const el = document.getElementById(`${id}-${field}`);
+    return el ? el.value : '';
+  };
+
+  const data = {
+    id, fase: supplier.id.startsWith('f1') ? 1 : 2,
+    empresa: supplier.empresa, produto: supplier.produto,
+    segmento: supplier.seg, dia: supplier.dia, zona: supplier.zona,
+    hall: get('hall'), booth: get('booth'), contato: get('contato'),
+    wechat: get('wechat'), preco: get('preco'), moq: get('moq'),
+    prazo: get('prazo'), status: get('status'),
+    proximoPasso: get('proximoPasso'), obs: get('obs')
+  };
+
+  // Save locally
+  visits[id] = data;
+  localStorage.setItem('canton_visits', JSON.stringify(visits));
+
+  // Update card UI
+  updateCardStatus(id, data.status);
+  updateCounts();
+  updateResumo();
+
+  // Sync to sheet
+  if (scriptUrl) syncToSheet(id, data);
+}
+
+function updateCardStatus(id, status) {
+  const card = document.getElementById('card-' + id);
+  if (!card) return;
+  card.className = card.className.replace(/status-\w+/g, '').trim();
+  if (status) card.classList.add('status-' + status);
+  const pill = card.querySelector('.status-pill');
+  if (pill) {
+    pill.className = 'status-pill ' + (status ? 'pill-' + status : 'pill-vazio');
+    pill.textContent = STATUS_LABELS[status] || STATUS_LABELS[''];
+  }
+}
+
+// ─── SHEET SYNC ──────────────────────────────────────────────────────────────
+function setSyncState(state, label) {
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncLabel');
+  dot.className = 'sync-dot ' + state;
+  lbl.textContent = label;
+}
+
+async function syncToSheet(id, data) {
+  if (!scriptUrl) return;
+  setSyncState('saving', 'Salvando...');
+  try {
+    await fetch(scriptUrl, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    setSyncState('ok', 'Sincronizado');
+    showToast('Salvo no Sheets', 'success');
+  } catch(e) {
+    setSyncState('err', 'Erro de sync');
+    showToast('Erro ao salvar', 'error');
+  }
+}
+
+async function loadFromSheet() {
+  if (!scriptUrl) return;
+  setSyncState('saving', 'Carregando...');
+  try {
+    const res = await fetch(scriptUrl + '?t=' + Date.now());
+    const json = await res.json();
+    const loaded = {};
+    ['Fase1','Fase2'].forEach(fase => {
+      if (!json[fase]) return;
+      json[fase].forEach(row => {
+        if (!row.ID) return;
+        loaded[row.ID] = {
+          hall: row.Hall || '', booth: row.Booth || '',
+          contato: row.Contato || '', wechat: row.WeChat || '',
+          preco: row.Preco || '', moq: row.MOQ || '',
+          prazo: row.Prazo || '', status: row.Status || '',
+          proximoPasso: row['Proximo Passo'] || '', obs: row.Observacoes || ''
+        };
+      });
+    });
+    // Merge: sheet wins over local
+    visits = Object.assign({}, JSON.parse(localStorage.getItem('canton_visits')||'{}'), loaded);
+    localStorage.setItem('canton_visits', JSON.stringify(visits));
+    setSyncState('ok', 'Sincronizado');
+    renderAll();
+    updateCounts();
+    updateResumo();
+  } catch(e) {
+    // fallback to local
+    visits = JSON.parse(localStorage.getItem('canton_visits') || '{}');
+    setSyncState('err', 'Offline - local');
+    renderAll();
+    updateCounts();
+  }
+}
+
+// ─── COUNTS ──────────────────────────────────────────────────────────────────
+function updateCounts() {
+  const count = (fase) => {
+    return SUPPLIERS[fase].filter(s => visits[s.id] && visits[s.id].status).length;
+  };
+  document.getElementById('cnt1').textContent = count('fase1') + '/' + SUPPLIERS.fase1.length;
+  document.getElementById('cnt2').textContent = count('fase2') + '/' + SUPPLIERS.fase2.length;
+
+  const all = [...SUPPLIERS.fase1, ...SUPPLIERS.fase2];
+  document.getElementById('r-total').textContent = all.length;
+  document.getElementById('r-interesse').textContent = all.filter(s => (visits[s.id]||{}).status === 'interesse').length;
+  document.getElementById('r-followup').textContent = all.filter(s => (visits[s.id]||{}).status === 'followup').length;
+  document.getElementById('r-sem').textContent = all.filter(s => (visits[s.id]||{}).status === 'seminteresse').length;
+}
+
+// ─── RESUMO ──────────────────────────────────────────────────────────────────
+function updateResumo() {
+  const all = [...SUPPLIERS.fase1, ...SUPPLIERS.fase2];
+  const render = (status, containerId) => {
+    const list = all.filter(s => (visits[s.id]||{}).status === status);
+    const el = document.getElementById(containerId);
+    if (!list.length) { el.innerHTML = '<p style="font-size:13px;color:var(--muted);margin-bottom:12px">Nenhuma ainda</p>'; return; }
+    el.innerHTML = list.map(s => {
+      const v = visits[s.id] || {};
+      return `<div class="supplier-card" style="margin-bottom:8px">
+        <div style="padding:12px 14px">
+          <div style="font-weight:500;font-size:14px">${s.empresa}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${s.seg} · ${s.produto}</div>
+          ${v.preco ? `<div style="font-size:12px;margin-top:6px;color:var(--accent)">USD ${v.preco} ${v.moq ? '· MOQ ' + v.moq : ''}</div>` : ''}
+          ${v.proximoPasso ? `<div style="font-size:12px;margin-top:4px;color:var(--muted)">${v.proximoPasso}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  };
+  render('interesse', 'resumo-interesse');
+  render('followup', 'resumo-followup');
+  render('fechado', 'resumo-fechado');
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+function showTab(tab) {
+  ['fase1','fase2','resumo','config'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === tab ? '' : 'none';
+  });
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['fase1','fase2','resumo','config'][i] === tab);
+  });
+  currentTab = tab;
+  if (tab === 'resumo') updateResumo();
+}
+
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+function saveConfig() {
+  const url = document.getElementById('scriptUrl').value.trim();
+  if (!url) return showToast('Cole a URL do Apps Script', 'error');
+  scriptUrl = url;
+  localStorage.setItem('canton_script_url', url);
+  loadFromSheet();
+  showToast('Conectado ao Sheets!', 'success');
+}
+
+function copyScript() {
+  navigator.clipboard.writeText(SCRIPT_CODE).then(() => {
+    showToast('Codigo copiado!', 'success');
+  }).catch(() => {
+    showToast('Copie manualmente do console', 'error');
+    console.log(SCRIPT_CODE);
+  });
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type='') {
+  const el = document.getElementById('toast');
+  clearTimeout(toastTimer);
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>

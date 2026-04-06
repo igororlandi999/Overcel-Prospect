@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Canton Fair 139 — Mapa</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F0EFEB;color:#1a1a1a;font-size:14px;overflow-x:hidden}
+
+/* HEADER */
+.hdr{background:#fff;border-bottom:1px solid rgba(0,0,0,.08);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200}
+.hdr-t{font-size:15px;font-weight:600;letter-spacing:-.02em}
+.hdr-s{font-size:11px;color:#888;margin-top:1px;font-variant-numeric:tabular-nums}
+
+/* PHASE SWITCHER */
+.phase-bar{display:flex;gap:0;background:#fff;border-bottom:1px solid rgba(0,0,0,.08);padding:0 16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.phase-btn{padding:11px 18px;font-size:13px;font-weight:500;color:#888;border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.phase-btn.on{color:#1a1a1a;border-bottom-color:#1a1a1a}
+
+/* MAIN LAYOUT */
+.main{display:flex;gap:0;height:calc(100vh - 88px);overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:200px;flex-shrink:0;background:#fff;border-right:1px solid rgba(0,0,0,.08);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.sidebar-section{padding:10px 12px 4px;font-size:10px;font-weight:600;letter-spacing:.06em;color:#aaa;text-transform:uppercase;border-top:1px solid rgba(0,0,0,.05)}
+.sidebar-section:first-child{border-top:none}
+.cat-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-left:3px solid transparent;transition:all .12s}
+.cat-item:hover{background:#F7F6F2}
+.cat-item.on{background:#F0EFEB;border-left-color:currentColor}
+.cat-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.cat-name{font-size:12px;line-height:1.3}
+.cat-halls{font-size:10px;color:#aaa;margin-top:1px}
+
+/* MAP AREA */
+.map-area{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:#F0EFEB;padding:16px;display:flex;flex-direction:column;gap:12px}
+
+/* COMPLEX WRAPPER */
+.complex{position:relative;width:100%;max-width:700px;margin:0 auto}
+
+/* ROAD LABEL */
+.road{text-align:center;font-size:10px;color:#aaa;letter-spacing:.05em;padding:4px 0;font-weight:500}
+
+/* AREA ROW */
+.area-row{display:grid;gap:8px}
+.area-row.top{grid-template-columns:1fr 1fr}
+.area-row.bottom{grid-template-columns:1fr 1fr 1fr 1fr}
+
+/* AREA BOX */
+.area-box{background:#fff;border-radius:12px;border:1.5px solid rgba(0,0,0,.08);padding:10px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden}
+.area-box:active{transform:scale(.98)}
+.area-box.highlighted{border-color:currentColor;box-shadow:0 0 0 3px rgba(0,0,0,.06)}
+.area-box.dimmed{opacity:.35}
+
+.area-label{font-size:10px;font-weight:700;letter-spacing:.08em;color:#aaa;text-transform:uppercase;margin-bottom:6px}
+.area-name{font-size:12px;font-weight:600;margin-bottom:6px;line-height:1.2}
+
+/* HALL GRID */
+.hall-grid{display:flex;flex-wrap:wrap;gap:4px}
+.hall{padding:3px 6px;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;transition:all .12s;white-space:nowrap}
+.hall:active{transform:scale(.95)}
+.hall.focus{outline:2px solid #1a1a1a;outline-offset:1px}
+
+/* OPEN AREA BADGE */
+.open-badge{font-size:9px;padding:2px 6px;border-radius:4px;background:#F0EFEB;color:#888;margin-top:4px;display:inline-block}
+
+/* DETAIL PANEL */
+.detail{background:#fff;border-radius:12px;border:1px solid rgba(0,0,0,.08);padding:14px 16px;max-width:700px;margin:0 auto;width:100%}
+.detail-none{color:#bbb;font-size:13px;text-align:center;padding:20px}
+.detail-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+.detail-dot{width:14px;height:14px;border-radius:4px;flex-shrink:0;margin-top:2px}
+.detail-title{font-size:14px;font-weight:600}
+.detail-halls{font-size:12px;color:#888;margin-top:2px}
+.detail-desc{font-size:12px;color:#555;line-height:1.6;margin-top:6px;padding-top:8px;border-top:1px solid rgba(0,0,0,.06)}
+.detail-tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;margin-top:6px;margin-right:4px}
+
+/* LEGEND */
+.legend{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;background:#fff;border-top:1px solid rgba(0,0,0,.06);max-width:700px;width:100%;margin:0 auto}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#555}
+.legend-swatch{width:10px;height:10px;border-radius:3px}
+
+/* PROMENADE */
+.promenade{text-align:center;font-size:10px;color:#93C5FD;background:#EFF6FF;border-radius:6px;padding:4px 8px;letter-spacing:.04em}
+
+/* MOBILE SIDEBAR TOGGLE */
+.mob-cats{display:none;background:#fff;border-bottom:1px solid rgba(0,0,0,.08);padding:8px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch;gap:6px;flex-wrap:nowrap}
+.mob-cat{flex-shrink:0;display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;border:1px solid rgba(0,0,0,.1);font-size:11px;cursor:pointer;white-space:nowrap;transition:all .12s}
+.mob-cat.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.mob-cat-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+@media(max-width:600px){
+  .sidebar{display:none}
+  .mob-cats{display:flex}
+  .main{flex-direction:column;height:auto;overflow:visible}
+  .map-area{padding:12px;overflow:visible}
+  .area-row.bottom{grid-template-columns:1fr 1fr}
+  .area-name{font-size:11px}
+  .hall{font-size:9px;padding:2px 5px}
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div>
+    <div class="hdr-t">Canton Fair 139</div>
+    <div class="hdr-s">Mapa dos halls — Fase 1 e 2</div>
+  </div>
+  <div style="font-size:11px;color:#aaa">Toque num hall</div>
+</div>
+
+<div class="phase-bar">
+  <button class="phase-btn on" onclick="setPhase(1,this)">Fase 1 — 15–19 abr</button>
+  <button class="phase-btn" onclick="setPhase(2,this)">Fase 2 — 23–27 abr</button>
+</div>
+
+<!-- Mobile category pills -->
+<div class="mob-cats" id="mob-cats"></div>
+
+<div class="main">
+  <div class="sidebar" id="sidebar"></div>
+
+  <div class="map-area">
+    <div class="complex">
+
+      <div class="road">Tuejiang Zhonglu (norte)</div>
+
+      <!-- TOP ROW: Area A (left/large) + Area B (right) -->
+      <div class="area-row top" style="margin-bottom:8px">
+
+        <div class="area-box" id="box-A" onclick="selectArea('A')">
+          <div class="area-label">Area A</div>
+          <div class="area-name" id="aname-A"></div>
+          <div class="hall-grid" id="halls-A"></div>
+        </div>
+
+        <div class="area-box" id="box-B" onclick="selectArea('B')">
+          <div class="area-label">Area B</div>
+          <div class="area-name" id="aname-B"></div>
+          <div class="hall-grid" id="halls-B"></div>
+          <span class="open-badge">Outdoor open area</span>
+        </div>
+
+      </div>
+
+      <div class="promenade">Pearl River Promenade</div>
+
+      <!-- Xingang Donglu road separating north/south -->
+      <div class="road" style="margin:6px 0">Xingang Donglu</div>
+
+      <!-- BOTTOM ROW: Area A south extension + Area D + Area C + Area B south -->
+      <div class="area-row bottom">
+
+        <div class="area-box" id="box-A2" onclick="selectArea('A2')" style="grid-column:span 1">
+          <div class="area-label">Area A</div>
+          <div class="area-name" style="font-size:10px" id="aname-A2">Sul</div>
+          <div class="hall-grid" id="halls-A2"></div>
+        </div>
+
+        <div class="area-box" id="box-D" onclick="selectArea('D')">
+          <div class="area-label">Area D</div>
+          <div class="area-name" id="aname-D"></div>
+          <div class="hall-grid" id="halls-D"></div>
+        </div>
+
+        <div class="area-box" id="box-C" onclick="selectArea('C')">
+          <div class="area-label">Area C</div>
+          <div class="area-name" id="aname-C"></div>
+          <div class="hall-grid" id="halls-C"></div>
+        </div>
+
+        <div class="area-box" id="box-B2" onclick="selectArea('B2')" style="grid-column:span 1">
+          <div class="area-label">Area B</div>
+          <div class="area-name" style="font-size:10px" id="aname-B2">Sul</div>
+          <div class="hall-grid" id="halls-B2"></div>
+        </div>
+
+      </div>
+
+      <div class="road" style="margin-top:6px">Fengpu Zhonglu (sul) · Metro Pazhou</div>
+
+    </div>
+
+    <!-- Detail panel -->
+    <div class="detail" id="detail">
+      <div class="detail-none">Toque em uma area ou hall para ver detalhes</div>
+    </div>
+
+  </div><!-- /map-area -->
+</div><!-- /main -->
+
+<script>
+var DATA = {
+  1: {
+    A: {
+      name: 'Electronics & NEV',
+      color: '#3B82F6',
+      bg: '#DBEAFE',
+      text: '#1D4ED8',
+      cats: [
+        { name: 'Consumer Electronics & Info Products', halls: ['1.1','1.6','1.Y','2.1Y','6.0','8.0'], color:'#EF4444', bg:'#FEE2E2', text:'#991B1B' },
+        { name: 'Household Electrical Appliances', halls: ['1.1','1.2','2.1','2.2','3.1','3.2','4.1','4.2','5.1','5.2','2.1Y','3.1Y','4.1Y','5.1Y'], color:'#3B82F6', bg:'#DBEAFE', text:'#1D4ED8' },
+        { name: 'New Energy Vehicles & Smart Mobility', halls: ['8.1'], color:'#10B981', bg:'#D1FAE5', text:'#065F46', priority:true },
+        { name: 'Construction Machinery', halls: ['4.0'], color:'#F59E0B', bg:'#FEF3C7', text:'#92400E' },
+        { name: 'Agricultural Machinery (outdoor)', halls: ['5.0','8.0'], color:'#84CC16', bg:'#ECFCCB', text:'#365314' },
+        { name: 'International Pavilion', halls: ['2.1'], color:'#8B5CF6', bg:'#EDE9FE', text:'#5B21B6' },
+      ]
+    },
+    A2: {
+      name: 'Area A Sul',
+      color: '#6366F1',
+      bg: '#E0E7FF',
+      text: '#3730A3',
+      cats: []
+    },
+    B: {
+      name: 'Hardware & Veiculos',
+      color: '#059669',
+      bg: '#D1FAE5',
+      text: '#065F46',
+      cats: [
+        { name: 'Hardware', halls: ['9.1','10.1','11.1','13.1'], color:'#6366F1', bg:'#E0E7FF', text:'#3730A3' },
+        { name: 'Tools', halls: ['9.2','10.2','11.2','12.1','12.2','13.1','13.2'], color:'#F59E0B', bg:'#FEF3C7', text:'#92400E' },
+        { name: 'Vehicle Spare Parts', halls: ['9.2','9.3','10.3','11.3'], color:'#EF4444', bg:'#FEE2E2', text:'#991B1B', priority:true },
+        { name: 'Agricultural Mach. (outdoor)', halls: ['9.0'], color:'#84CC16', bg:'#ECFCCB', text:'#365314' },
+        { name: 'Construction Mach. (outdoor)', halls: ['9.0','12.0'], color:'#F97316', bg:'#FFEDD5', text:'#9A3412' },
+        { name: 'Vehicles (outdoor)', halls: ['13.0'], color:'#3B82F6', bg:'#DBEAFE', text:'#1D4ED8', priority:true },
+        { name: 'International Pavilion', halls: ['9.2'], color:'#8B5CF6', bg:'#EDE9FE', text:'#5B21B6' },
+      ]
+    },
+    B2: {
+      name: 'Area B Sul',
+      color: '#059669',
+      bg: '#D1FAE5',
+      text: '#065F46',
+      cats: []
+    },
+    C: {
+      name: 'New Energy & Eletrico',
+      color: '#10B981',
+      bg: '#D1FAE5',
+      text: '#065F46',
+      cats: [
+        { name: 'Motorcycles', halls: ['14.1','15.1','16.2'], color:'#6B7280', bg:'#F3F4F6', text:'#374151' },
+        { name: 'Electronic & Electrical Products', halls: ['14.2','15.2','16.3'], color:'#F59E0B', bg:'#FEF3C7', text:'#92400E' },
+        { name: 'Bicycles', halls: ['16.2'], color:'#84CC16', bg:'#ECFCCB', text:'#365314' },
+        { name: 'Lighting Equipment', halls: ['14.3','14.4','15.4','16.4'], color:'#FBBF24', bg:'#FEF9C3', text:'#854D0E' },
+        { name: 'New Energy Resources', halls: ['14.3','15.3'], color:'#10B981', bg:'#D1FAE5', text:'#065F46', priority:true },
+      ]
+    },
+    D: {
+      name: 'Maquinario & Automacao',
+      color: '#D97706',
+      bg: '#FEF3C7',
+      text: '#92400E',
+      cats: [
+        { name: 'Power Machinery & Electric Power', halls: ['17.1','18.1'], color:'#EF4444', bg:'#FEE2E2', text:'#991B1B' },
+        { name: 'Processing Machinery Equipment', halls: ['18.1','19.1','20.1'], color:'#F97316', bg:'#FFEDD5', text:'#9A3412' },
+        { name: 'Industrial Automation & Intelligent Mfg', halls: ['20.1'], color:'#8B5CF6', bg:'#EDE9FE', text:'#5B21B6' },
+        { name: 'New Materials & Chemical Products', halls: ['17.2'], color:'#6366F1', bg:'#E0E7FF', text:'#3730A3' },
+        { name: 'General Machinery & Mech. Basic Parts', halls: ['17.2','18.2','19.2','20.2'], color:'#D97706', bg:'#FEF3C7', text:'#92400E' },
+        { name: 'Service Robots', halls: ['21.2'], color:'#10B981', bg:'#D1FAE5', text:'#065F46' },
+        { name: 'Friendship Hall', halls: ['21.2'], color:'#EC4899', bg:'#FCE7F3', text:'#9D174D' },
+      ]
+    }
+  },
+  2: {
+    A: {
+      name: 'Housewares & Ceramica',
+      color: '#EC4899',
+      bg: '#FCE7F3',
+      text: '#9D174D',
+      cats: [
+        { name: 'Festival Products', halls: ['1.1','6.1','6.0'], color:'#EF4444', bg:'#FEE2E2', text:'#991B1B' },
+        { name: 'General Ceramics', halls: ['2.1','2.2','3.2','4.1','5.1','5.1Y'], color:'#F97316', bg:'#FFEDD5', text:'#9A3412' },
+        { name: 'Kitchenware & Tableware', halls: ['1.2','2.2','3.2','4.2','5.2','2.1Y','3.1Y','4.1Y'], color:'#84CC16', bg:'#ECFCCB', text:'#365314' },
+        { name: 'Gardening Products', halls: ['6.1','7.1','8.1','8.0'], color:'#10B981', bg:'#D1FAE5', text:'#065F46' },
+        { name: 'Weaving, Rattan & Iron Products', halls: ['4.0','8.0'], color:'#D97706', bg:'#FEF3C7', text:'#92400E' },
+        { name: 'International Pavilion', halls: ['2.1'], color:'#8B5CF6', bg:'#EDE9FE', text:'#5B21B6' },
+      ]
+    },
+    A2: {
+      name: 'Area A Sul',
+      color: '#6366F1',
+      bg: '#E0E7FF',
+      text: '#3730A3',
+      cats: []
+    },
+    B: {
+      name: 'Sanit. & Moveis',
+      color: '#0EA5E9',
+      bg: '#E0F2FE',
+      text: '#0C4A6E',
+      cats: [
+        { name: 'Sanitary & Bathroom Equipment', halls: ['9.1','10.1','11.1'], color:'#0EA5E9', bg:'#E0F2FE', text:'#0C4A6E' },
+        { name: 'Art Ceramics', halls: ['9.2','10.2'], color:'#F97316', bg:'#FFEDD5', text:'#9A3412' },
+        { name: 'Furniture', halls: ['9.3','10.3','11.3','9.0','12.0'], color:'#D97706', bg:'#FEF3C7', text:'#92400E' },
+        { name: 'Building & Decorative Materials', halls: ['11.1','11.2','12.2','13.1','13.2'], color:'#6366F1', bg:'#E0E7FF', text:'#3730A3' },
+        { name: 'Stone/Iron Decoration & Outdoor Spa', halls: ['13.0'], color:'#8B5CF6', bg:'#EDE9FE', text:'#5B21B6' },
+        { name: 'International Pavilion', halls: ['11.2'], color:'#EC4899', bg:'#FCE7F3', text:'#9D174D' },
+      ]
+    },
+    B2: {
+      name: 'Area B Sul',
+      color: '#0EA5E9',
+      bg: '#E0F2FE',
+      text: '#0C4A6E',
+      cats: []
+    },
+    C: {
+      name: 'Glass & Household',
+      color: '#6366F1',
+      bg: '#E0E7FF',
+      text: '#3730A3',
+      cats: [
+        { name: 'Glass Artware', halls: ['14.1','14.2','15.1','15.2'], color:'#0EA5E9', bg:'#E0F2FE', text:'#0C4A6E' },
+        { name: 'Household Items', halls: ['14.3','14.4','15.2','16.2','16.3','16.4'], color:'#EC4899', bg:'#FCE7F3', text:'#9D174D' },
+      ]
+    },
+    D: {
+      name: 'Decoracao & Presentes',
+      color: '#8B5CF6',
+      bg: '#EDE9FE',
+      text: '#5B21B6',
+      cats: [
+        { name: 'Home Decorations', halls: ['17.1','18.1','19.1','20.1'], color:'#EF4444', bg:'#FEE2E2', text:'#991B1B' },
+        { name: 'Clocks, Watches & Optical Instruments', halls: ['17.1','18.1'], color:'#6366F1', bg:'#E0E7FF', text:'#3730A3' },
+        { name: 'Gifts and Premiums', halls: ['17.2','18.2','19.2','20.2'], color:'#F59E0B', bg:'#FEF3C7', text:'#92400E' },
+      ]
+    }
+  }
+};
+
+var currentPhase = 1;
+var selectedCat = null;
+var selectedArea = null;
+
+function setPhase(n, btn) {
+  currentPhase = n;
+  selectedCat = null;
+  selectedArea = null;
+  document.querySelectorAll('.phase-btn').forEach(function(b){b.classList.remove('on')});
+  btn.classList.add('on');
+  renderAll();
+}
+
+function renderAll() {
+  var d = DATA[currentPhase];
+  var areas = ['A','B','C','D','A2','B2'];
+
+  areas.forEach(function(area) {
+    var a = d[area];
+    if (!a) return;
+    var box = document.getElementById('box-' + area);
+    var nameEl = document.getElementById('aname-' + area);
+    var hallsEl = document.getElementById('halls-' + area);
+    if (!box || !nameEl || !hallsEl) return;
+
+    nameEl.textContent = a.name;
+    box.style.borderColor = a.color + '44';
+    box.style.color = a.color;
+
+    // collect all halls from cats
+    var hallMap = {};
+    a.cats.forEach(function(cat) {
+      cat.halls.forEach(function(h) {
+        if (!hallMap[h]) hallMap[h] = cat;
+      });
+    });
+
+    hallsEl.innerHTML = '';
+    Object.keys(hallMap).sort().forEach(function(h) {
+      var cat = hallMap[h];
+      var el = document.createElement('div');
+      el.className = 'hall';
+      el.textContent = h;
+      el.style.background = cat.bg;
+      el.style.color = cat.text;
+      el.onclick = function(e) { e.stopPropagation(); selectHall(area, h, cat); };
+      hallsEl.appendChild(el);
+    });
+
+    box.classList.remove('highlighted','dimmed');
+  });
+
+  renderSidebar();
+  renderMobCats();
+  document.getElementById('detail').innerHTML = '<div class="detail-none">Toque em uma area ou hall para ver detalhes</div>';
+}
+
+function selectArea(area) {
+  selectedArea = area;
+  selectedCat = null;
+  var d = DATA[currentPhase][area];
+  if (!d) return;
+
+  document.querySelectorAll('.area-box').forEach(function(b) { b.classList.remove('highlighted','dimmed'); });
+  document.getElementById('box-' + area).classList.add('highlighted');
+
+  var detail = document.getElementById('detail');
+  var cats = d.cats.map(function(c) {
+    return '<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid rgba(0,0,0,.05)">' +
+      '<div style="width:10px;height:10px;border-radius:3px;background:'+c.color+';flex-shrink:0;margin-top:2px"></div>' +
+      '<div><div style="font-size:12px;font-weight:500">' + c.name + (c.priority ? ' <span style="font-size:9px;background:#FEF3C7;color:#92400E;padding:1px 5px;border-radius:3px;font-weight:600">FOCO</span>' : '') + '</div>' +
+      '<div style="font-size:10px;color:#888;margin-top:1px">Halls: ' + c.halls.join(', ') + '</div></div></div>';
+  }).join('');
+
+  detail.innerHTML = '<div class="detail-header"><div class="detail-dot" style="background:'+d.color+'"></div><div><div class="detail-title">Area ' + area.replace('2','') + ' — ' + d.name + '</div></div></div>' +
+    (cats || '<div style="font-size:12px;color:#aaa">Sem categorias especificas nesta secao</div>');
+}
+
+function selectHall(area, hall, cat) {
+  selectedCat = cat.name;
+  var d = DATA[currentPhase][area];
+
+  document.querySelectorAll('.area-box').forEach(function(b) { b.classList.add('dimmed'); });
+  // highlight all areas that have this cat
+  var areas = ['A','A2','B','B2','C','D'];
+  areas.forEach(function(a) {
+    var ad = DATA[currentPhase][a];
+    if (!ad) return;
+    var found = ad.cats.some(function(c){ return c.name === cat.name; });
+    if (found) {
+      document.getElementById('box-' + a).classList.remove('dimmed');
+      document.getElementById('box-' + a).classList.add('highlighted');
+    }
+  });
+
+  // highlight hall pills
+  document.querySelectorAll('.hall').forEach(function(el) {
+    el.classList.remove('focus');
+    if (el.textContent === hall) el.classList.add('focus');
+  });
+
+  var detail = document.getElementById('detail');
+  detail.innerHTML = '<div class="detail-header"><div class="detail-dot" style="background:'+cat.color+'"></div>' +
+    '<div><div class="detail-title">' + cat.name + (cat.priority ? ' <span class="detail-tag" style="background:#FEF3C7;color:#92400E">Seu foco</span>' : '') + '</div>' +
+    '<div class="detail-halls">Halls: ' + cat.halls.join(' · ') + '</div></div></div>';
+}
+
+function renderSidebar() {
+  var d = DATA[currentPhase];
+  var sb = document.getElementById('sidebar');
+  var areas = [
+    {key:'A', label:'Area A'}, {key:'B', label:'Area B'},
+    {key:'C', label:'Area C'}, {key:'D', label:'Area D'}
+  ];
+  sb.innerHTML = '';
+  areas.forEach(function(ar) {
+    var a = d[ar.key];
+    if (!a || !a.cats.length) return;
+    var sec = document.createElement('div');
+    sec.className = 'sidebar-section';
+    sec.textContent = ar.label + ' — ' + a.name;
+    sb.appendChild(sec);
+    a.cats.forEach(function(cat) {
+      var item = document.createElement('div');
+      item.className = 'cat-item';
+      item.style.color = cat.color;
+      item.innerHTML = '<div class="cat-dot" style="background:'+cat.color+'"></div>' +
+        '<div><div class="cat-name">' + cat.name + (cat.priority ? ' <span style="font-size:9px;background:'+cat.bg+';color:'+cat.text+';padding:1px 4px;border-radius:3px">foco</span>' : '') + '</div>' +
+        '<div class="cat-halls">' + cat.halls.join(', ') + '</div></div>';
+      item.onclick = function() { selectHall(ar.key, cat.halls[0], cat); };
+      sb.appendChild(item);
+    });
+  });
+}
+
+function renderMobCats() {
+  var d = DATA[currentPhase];
+  var mc = document.getElementById('mob-cats');
+  mc.innerHTML = '';
+  var areas = ['A','B','C','D'];
+  areas.forEach(function(ar) {
+    var a = d[ar];
+    if (!a) return;
+    a.cats.forEach(function(cat) {
+      var el = document.createElement('div');
+      el.className = 'mob-cat';
+      el.innerHTML = '<div class="mob-cat-dot" style="background:'+cat.color+'"></div>' + cat.name.split('&')[0].trim();
+      el.onclick = function() {
+        document.querySelectorAll('.mob-cat').forEach(function(m){m.classList.remove('on')});
+        el.classList.add('on');
+        selectHall(ar, cat.halls[0], cat);
+        document.querySelector('.map-area').scrollIntoView({behavior:'smooth'});
+      };
+      mc.appendChild(el);
+    });
+  });
+}
+
+renderAll();
+</script>
+</body>
+</html>
