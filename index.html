@@ -1546,12 +1546,14 @@
           id: p.id,
           deviceId: p.deviceId || DEVICE_ID,
           updatedAt: p.updatedAt || Date.now(),
+          deleted: p.deleted || false,
           data: p
         })),
         suppliers: suppliers.map(s => ({
           id: s.id,
           deviceId: s.deviceId || DEVICE_ID,
           updatedAt: s.updatedAt || Date.now(),
+          deleted: s.deleted || false,
           data: s
         }))
       };
@@ -1564,11 +1566,13 @@
       const json = await res.json();
 
       if (json.ok) {
-        // Merge server data back
-        products  = json.products  || products;
-        suppliers = json.suppliers || suppliers;
-        LS.set('cf_products',  products);
-        LS.set('cf_suppliers', suppliers);
+        // Guarda tudo incluindo tombstones localmente, mas expoe só os vivos
+        const allProducts  = json.products  || products;
+        const allSuppliers = json.suppliers || suppliers;
+        LS.set('cf_products',  allProducts);
+        LS.set('cf_suppliers', allSuppliers);
+        products  = allProducts;
+        suppliers = allSuppliers;
         pendingSync = false;
 
         const ts = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -1719,6 +1723,7 @@
     const minScore = parseFloat(document.getElementById('filter-score')?.value || 0);
 
     let filtered = products.filter(p => {
+      if (p.deleted) return false;
       const sup = suppliers.find(s => s.id === p.supplierId);
       const searchStr = [p.productName, p.category, p.application, sup?.supplierName].filter(Boolean).join(' ').toLowerCase();
       if (q && !searchStr.includes(q)) return false;
@@ -2028,7 +2033,10 @@
     document.getElementById('btn-detail-edit').addEventListener('click', () => navigate('edit-product', { product: p }));
     document.getElementById('btn-detail-delete').addEventListener('click', () => {
       if (confirm('Excluir este produto?')) {
-        products = products.filter(x => x.id !== p.id);
+        const idx = products.findIndex(x => x.id === p.id);
+        if (idx >= 0) {
+          products[idx] = { ...products[idx], deleted: true, updatedAt: Date.now(), deviceId: DEVICE_ID };
+        }
         saveLocal();
         scheduleSync();
         showToast('Produto excluido');
