@@ -64,7 +64,13 @@
     font-size: 11px;
     color: var(--muted);
     font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    transition: border-color 0.2s;
   }
+  .sync-badge:active { opacity: 0.7; }
   .sync-dot {
     width: 7px; height: 7px;
     border-radius: 50%;
@@ -400,7 +406,7 @@
 <div class="header">
   <div class="header-top">
     <div class="logo">Canton<span>Fair</span> 138</div>
-    <div class="sync-badge">
+    <div class="sync-badge" onclick="loadFromSheet()" title="Toque para sincronizar">
       <div class="sync-dot" id="syncDot"></div>
       <span id="syncLabel">Sem config</span>
     </div>
@@ -504,8 +510,9 @@ const SCRIPT_CODE = `function doPost(e) {
   } else {
     sheet.appendRow(row);
   }
-  return ContentService.createTextOutput(JSON.stringify({ok:true}))
-    .setMimeType(ContentService.MimeType.JSON);
+  var output = ContentService.createTextOutput(JSON.stringify({ok:true}));
+  output.setMimeType(ContentService.MimeType.JSON);
+  return output;
 }
 
 function doGet(e) {
@@ -522,8 +529,9 @@ function doGet(e) {
       return obj;
     });
   });
-  return ContentService.createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
+  var output = ContentService.createTextOutput(JSON.stringify(result));
+  output.setMimeType(ContentService.MimeType.JSON);
+  return output;
 }`;
 
 // ─── DATA ───────────────────────────────────────────────────────────────────
@@ -769,6 +777,8 @@ async function syncToSheet(id, data) {
   try {
     await fetch(scriptUrl, {
       method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(data)
     });
     setSyncState('ok', 'Sincronizado');
@@ -781,9 +791,13 @@ async function syncToSheet(id, data) {
 
 async function loadFromSheet() {
   if (!scriptUrl) return;
-  setSyncState('saving', 'Carregando...');
+  setSyncState('saving', 'Sincronizando...');
   try {
-    const res = await fetch(scriptUrl + '?t=' + Date.now());
+    const res = await fetch(scriptUrl + '?t=' + Date.now(), {
+      method: 'GET',
+      mode: 'cors'
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
     const loaded = {};
     ['Fase1','Fase2'].forEach(fase => {
@@ -799,17 +813,17 @@ async function loadFromSheet() {
         };
       });
     });
-    // Merge: sheet wins over local
-    visits = Object.assign({}, JSON.parse(localStorage.getItem('canton_visits')||'{}'), loaded);
+    const local = JSON.parse(localStorage.getItem('canton_visits') || '{}');
+    visits = Object.assign({}, local, loaded);
     localStorage.setItem('canton_visits', JSON.stringify(visits));
     setSyncState('ok', 'Sincronizado');
+    showToast('Dados carregados do Sheets', 'success');
     renderAll();
     updateCounts();
     updateResumo();
   } catch(e) {
-    // fallback to local
     visits = JSON.parse(localStorage.getItem('canton_visits') || '{}');
-    setSyncState('err', 'Offline - local');
+    setSyncState('err', 'Toque para tentar sync');
     renderAll();
     updateCounts();
   }
