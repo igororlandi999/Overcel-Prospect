@@ -4,26 +4,1129 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="theme-color" content="#0f0f0f" />
+  <meta name="theme-color" content="#0d0d0d" />
   <title>Canton Fair Tracker</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ── RESET & TOKENS ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d0d;
+      --surface:   #161616;
+      --surface2:  #1e1e1e;
+      --border:    #2a2a2a;
+      --accent:    #c8f135;
+      --accent2:   #ff6b35;
+      --text:      #f0f0f0;
+      --text-mute: #6b6b6b;
+      --text-dim:  #9a9a9a;
+      --danger:    #ff4444;
+      --success:   #4caf50;
+
+      --font-head: 'Syne', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+
+      --radius:    6px;
+      --header-h:  52px;
+      --nav-h:     64px;
+      --fab-size:  52px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    input, select, textarea, button {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    /* ── LAYOUT ─────────────────────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 480px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    #top-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      height: var(--header-h);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      gap: 10px;
+    }
+
+    #header-title {
+      font-family: var(--font-head);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      flex: 1;
+      text-align: center;
+    }
+
+    #main-content {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: calc(var(--nav-h) + 80px);
+    }
+
+    #bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      height: var(--nav-h);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: stretch;
+      z-index: 100;
+    }
+
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-mute);
+      transition: color .15s;
+    }
+
+    .nav-item.active { color: var(--accent); }
+    .nav-item:active { opacity: .7; }
+
+    .nav-icon {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .nav-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    /* ── SYNC STATUS BAR ─────────────────────────────────────── */
+    #sync-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      font-size: 11px;
+      color: var(--text-mute);
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    #sync-bar.syncing { color: var(--accent); }
+    #sync-bar.error   { color: var(--danger); }
+    #sync-bar.ok      { color: var(--success); }
+
+    #sync-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+
+    #sync-bar.syncing #sync-dot {
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: .3; }
+    }
+
+    #sync-bar button {
+      margin-left: auto;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      padding: 2px 8px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    #sync-bar button:active { background: var(--surface2); }
+
+    /* ── ICON BUTTONS ────────────────────────────────────────── */
+    .btn-icon {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 18px;
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+
+    .btn-icon:active { background: var(--surface2); }
+    .btn-icon.hidden { visibility: hidden; pointer-events: none; }
+    .hidden { display: none !important; }
+
+    /* ── SEARCH + FILTERS ────────────────────────────────────── */
+    .search-bar-wrap {
+      padding: 12px 14px 0;
+    }
+
+    #search-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    #search-input:focus { border-color: var(--accent); }
+
+    .filters-row {
+      display: flex;
+      gap: 8px;
+      padding: 10px 14px 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .filters-row::-webkit-scrollbar { display: none; }
+
+    .filters-row select {
+      flex-shrink: 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 7px 10px;
+      color: var(--text);
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .filters-row select:focus { border-color: var(--accent); }
+
+    .score-filter-row {
+      padding: 10px 14px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .score-filter-row input[type=range] {
+      flex: 1;
+      accent-color: var(--accent);
+    }
+
+    /* ── PRODUCT LIST ────────────────────────────────────────── */
+    .product-list {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      cursor: pointer;
+      transition: border-color .15s, transform .1s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .product-card:active { transform: scale(.99); }
+    .product-card:hover  { border-color: #3a3a3a; }
+
+    .product-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity .15s;
+    }
+
+    .product-card.priority::before { opacity: 1; }
+    .product-card.high-urgency::before { background: var(--accent2); opacity: 1; }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .card-name {
+      font-family: var(--font-head);
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.3;
+      flex: 1;
+    }
+
+    .score-badge {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      border: 1.5px solid var(--border);
+    }
+
+    .score-badge.high   { border-color: var(--accent); color: var(--accent); }
+    .score-badge.medium { border-color: #888; color: #888; }
+    .score-badge.low    { border-color: #444; color: #555; }
+
+    .card-supplier {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+
+    .card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .tag {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      color: var(--text-mute);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .tag.status-priority    { border-color: var(--accent); color: var(--accent); }
+    .tag.status-negotiating { border-color: var(--accent2); color: var(--accent2); }
+    .tag.status-request     { border-color: #888; color: #888; }
+    .tag.urgency-high       { border-color: var(--danger); color: var(--danger); }
+
+    .card-device {
+      position: absolute;
+      top: 8px;
+      right: 50px;
+      font-size: 9px;
+      color: var(--text-mute);
+      letter-spacing: .04em;
+    }
+
+    /* ── EMPTY STATE ─────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 30px;
+      color: var(--text-dim);
+    }
+
+    .empty-state p { margin-bottom: 16px; }
+
+    /* ── FAB ─────────────────────────────────────────────────── */
+    #fab-add {
+      position: fixed;
+      bottom: calc(var(--nav-h) + 16px);
+      right: calc(50% - 224px);
+      width: var(--fab-size);
+      height: var(--fab-size);
+      border-radius: 50%;
+      background: var(--accent);
+      color: #000;
+      font-size: 26px;
+      font-weight: 300;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(200,241,53,.3);
+      z-index: 90;
+      transition: transform .15s, box-shadow .15s;
+    }
+
+    #fab-add:active {
+      transform: scale(.92);
+      box-shadow: 0 2px 10px rgba(200,241,53,.2);
+    }
+
+    @media (max-width: 480px) {
+      #fab-add { right: 16px; }
+    }
+
+    /* ── FORM ────────────────────────────────────────────────── */
+    .product-form {
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .form-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+
+    .form-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: var(--surface);
+      cursor: pointer;
+      font-family: var(--font-head);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      user-select: none;
+    }
+
+    .toggle-arrow {
+      font-size: 10px;
+      transition: transform .2s;
+    }
+
+    .form-section-body.collapsed .toggle-arrow { transform: rotate(-90deg); }
+    .form-section-body {
+      padding: 14px;
+      background: var(--surface2);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .form-section-body.collapsed { display: none; }
+
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+
+    .form-group label {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    input[type=text], input[type=email], input[type=url],
+    input[type=search], select, textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 11px;
+      color: var(--text);
+      outline: none;
+      width: 100%;
+      transition: border-color .15s;
+    }
+
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; }
+
+    .btn-link {
+      background: none;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 12px;
+      text-align: left;
+      padding: 0;
+    }
+
+    .radio-group, .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .radio-label, .check-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    input[type=radio], input[type=checkbox] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Toggle switch */
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+    }
+
+    .toggle-input { display: none; }
+
+    .toggle-label {
+      width: 38px;
+      height: 22px;
+      background: var(--border);
+      border-radius: 11px;
+      cursor: pointer;
+      position: relative;
+      transition: background .15s;
+    }
+
+    .toggle-label::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: var(--text-mute);
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: transform .15s, background .15s;
+    }
+
+    .toggle-input:checked + .toggle-label { background: var(--accent); }
+    .toggle-input:checked + .toggle-label::after {
+      transform: translateX(16px);
+      background: #000;
+    }
+
+    /* Score sliders */
+    .slider-group label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      text-transform: uppercase;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .weight-tag {
+      font-size: 10px;
+      color: var(--text-mute);
+      background: var(--border);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .slider-val {
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    input[type=range] {
+      width: 100%;
+      accent-color: var(--accent);
+      height: 4px;
+    }
+
+    /* Score preview circle */
+    .score-preview-wrap {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 4px;
+    }
+
+    .score-circle {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #score-value-form {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--accent);
+    }
+
+    .score-label-hint {
+      font-size: 11px;
+      color: var(--text-mute);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    /* Photo preview */
+    .photo-preview {
+      margin-top: 8px;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .photo-preview img {
+      width: 100%;
+      max-height: 180px;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* Form actions */
+    .form-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 6px 0 20px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: var(--radius);
+      padding: 13px;
+      font-family: var(--font-head);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+
+    .btn-primary:active { opacity: .85; transform: scale(.98); }
+
+    .btn-secondary {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: var(--radius);
+      padding: 13px;
+      font-family: var(--font-head);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .btn-secondary:active { background: var(--surface2); }
+    .btn-large { width: 100%; }
+
+    /* ── PRODUCT DETAIL ──────────────────────────────────────── */
+    .view-detail { padding: 16px 14px; }
+
+    .detail-hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 16px;
+      margin-bottom: 16px;
+    }
+
+    .detail-name {
+      font-family: var(--font-head);
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .detail-supplier-name {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+    }
+
+    .detail-score-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .detail-score-big {
+      font-family: var(--font-mono);
+      font-size: 36px;
+      font-weight: 500;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .detail-score-sub {
+      font-size: 11px;
+      color: var(--text-mute);
+      text-transform: uppercase;
+    }
+
+    .detail-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .detail-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+
+    .detail-section h4 {
+      font-family: var(--font-head);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--text-mute);
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .detail-field-label {
+      font-size: 10px;
+      color: var(--text-mute);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 2px;
+    }
+
+    .detail-field-val {
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .detail-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .btn-danger {
+      flex: 1;
+      background: none;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      border-radius: var(--radius);
+      padding: 11px;
+      font-family: var(--font-head);
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    /* ── SUMMARY ─────────────────────────────────────────────── */
+    .view-summary { padding: 16px 14px; }
+
+    .summary-header h2 {
+      font-family: var(--font-head);
+      font-size: 18px;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .summary-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+    }
+
+    .stat-card .stat-val {
+      font-family: var(--font-mono);
+      font-size: 28px;
+      font-weight: 500;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .stat-card .stat-label {
+      font-size: 11px;
+      color: var(--text-mute);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-top: 4px;
+    }
+
+    .summary-section {
+      margin-bottom: 20px;
+    }
+
+    .summary-section h3 {
+      font-family: var(--font-head);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mini-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      margin-bottom: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .mini-card .mini-name {
+      font-size: 13px;
+      font-weight: 500;
+      flex: 1;
+    }
+
+    .mini-card .mini-score {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--accent);
+    }
+
+    .status-bar-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 7px;
+    }
+
+    .status-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+    }
+
+    .status-bar-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .status-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width .4s ease;
+    }
+
+    .export-section { display: flex; flex-direction: column; gap: 10px; }
+
+    /* ── SUPPLIERS ───────────────────────────────────────────── */
+    .view-suppliers { padding: 16px 14px; }
+
+    .supplier-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+
+    .supplier-card:active { opacity: .8; }
+
+    .supplier-name {
+      font-family: var(--font-head);
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .supplier-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .supplier-meta span { white-space: nowrap; }
+
+    /* ── TOAST ───────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: calc(var(--nav-h) + 80px);
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 18px;
+      font-size: 13px;
+      color: var(--text);
+      z-index: 200;
+      opacity: 0;
+      transition: opacity .2s, transform .2s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── SETUP SCREEN ────────────────────────────────────────── */
+    #setup-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 24px;
+      gap: 20px;
+    }
+
+    #setup-screen h2 {
+      font-family: var(--font-head);
+      font-size: 22px;
+      font-weight: 800;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    #setup-screen p {
+      font-size: 13px;
+      color: var(--text-dim);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    #setup-screen input {
+      width: 100%;
+      font-size: 12px;
+    }
+
+    #setup-screen .setup-label {
+      font-size: 11px;
+      color: var(--text-mute);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 5px;
+    }
+
+    .setup-field { width: 100%; }
+
+    #btn-setup-save {
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    #btn-setup-skip {
+      background: none;
+      border: none;
+      color: var(--text-mute);
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* ── SETTINGS PANEL ──────────────────────────────────────── */
+    #settings-panel {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.6);
+      z-index: 250;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    #settings-panel.open { display: flex; }
+
+    .settings-sheet {
+      background: var(--surface);
+      border-radius: 12px 12px 0 0;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      width: 100%;
+      max-width: 480px;
+      padding: 20px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .settings-sheet h3 {
+      font-family: var(--font-head);
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .settings-sheet label {
+      font-size: 11px;
+      color: var(--text-mute);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    .settings-sheet .device-id-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-sheet .device-id-val {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 7px 10px;
+    }
+  </style>
 </head>
 <body>
 
-  <!-- ===================== APP WRAPPER ===================== -->
-  <div id="app">
+  <!-- ── SETUP SCREEN (shown only once if no URL configured) ── -->
+  <div id="setup-screen">
+    <h2>Canton Fair Tracker</h2>
+    <p>Configure o Apps Script para sincronizar dados entre todos os dispositivos da equipe.</p>
 
-    <!-- TOP HEADER -->
+    <div class="setup-field">
+      <div class="setup-label">Apps Script Web App URL</div>
+      <input type="url" id="setup-url-input" placeholder="https://script.google.com/macros/s/..." />
+    </div>
+
+    <div class="setup-field">
+      <div class="setup-label">Seu nome (identificação)</div>
+      <input type="text" id="setup-name-input" placeholder="Ex: Igor, Thiago..." />
+    </div>
+
+    <button class="btn-primary" id="btn-setup-save">Salvar e Sincronizar</button>
+    <button id="btn-setup-skip">Usar offline por enquanto</button>
+  </div>
+
+  <!-- ── SETTINGS PANEL ─────────────────────────────────────── -->
+  <div id="settings-panel">
+    <div class="settings-sheet">
+      <h3>Configuracoes</h3>
+
+      <div>
+        <label>Device ID</label>
+        <div class="device-id-row">
+          <span class="device-id-val" id="settings-device-id"></span>
+        </div>
+      </div>
+
+      <div>
+        <label>Seu nome</label>
+        <input type="text" id="settings-name-input" />
+      </div>
+
+      <div>
+        <label>Apps Script URL</label>
+        <input type="url" id="settings-url-input" />
+      </div>
+
+      <button class="btn-primary" id="btn-settings-save">Salvar</button>
+      <button class="btn-secondary" id="btn-settings-close">Fechar</button>
+    </div>
+  </div>
+
+  <!-- ── APP ───────────────────────────────────────────────── -->
+  <div id="app">
     <header id="top-header">
       <button id="btn-back" class="btn-icon hidden" aria-label="Voltar">&#8592;</button>
       <h1 id="header-title">Canton Fair</h1>
-      <button id="btn-header-action" class="btn-icon hidden" aria-label="Ação"></button>
+      <button id="btn-header-action" class="btn-icon" aria-label="Configuracoes" id="btn-settings-open">&#9881;</button>
     </header>
 
-    <!-- MAIN CONTENT AREA (views rendered here) -->
+    <!-- Sync status -->
+    <div id="sync-bar" class="ok">
+      <span id="sync-dot"></span>
+      <span id="sync-msg">Offline — configure o Apps Script</span>
+      <button id="btn-manual-sync">Sincronizar</button>
+    </div>
+
     <main id="main-content"></main>
 
-    <!-- BOTTOM NAVIGATION -->
     <nav id="bottom-nav">
       <button class="nav-item active" data-view="home">
         <span class="nav-icon">&#9782;</span>
@@ -38,21 +1141,17 @@
         <span class="nav-label">Fornecedores</span>
       </button>
     </nav>
-
   </div>
 
-  <!-- ===================== TEMPLATES ===================== -->
+  <button id="fab-add" class="fab" aria-label="Adicionar">+</button>
+  <div id="toast" class="toast hidden"></div>
 
-  <!-- TEMPLATE: HOME / PRODUCT LIST -->
+  <!-- ── TEMPLATES ─────────────────────────────────────────── -->
   <template id="tpl-home">
     <div class="view-home">
-
-      <!-- Search bar -->
       <div class="search-bar-wrap">
-        <input type="search" id="search-input" placeholder="&#128269; Buscar produto ou fornecedor..." autocomplete="off" />
+        <input type="search" id="search-input" placeholder="Buscar produto ou fornecedor..." autocomplete="off" />
       </div>
-
-      <!-- Filters row -->
       <div class="filters-row">
         <select id="filter-category">
           <option value="">Todas categorias</option>
@@ -66,7 +1165,6 @@
           <option value="Accessories">Accessories</option>
           <option value="Other">Other</option>
         </select>
-
         <select id="filter-status">
           <option value="">Todos status</option>
           <option value="Discovered">Discovered</option>
@@ -77,49 +1175,36 @@
           <option value="Priority">Priority</option>
           <option value="Discarded">Discarded</option>
         </select>
-
         <select id="filter-sort">
           <option value="score">Maior score</option>
           <option value="recent">Mais recentes</option>
-          <option value="urgency">Urgência</option>
+          <option value="urgency">Urgencia</option>
         </select>
       </div>
-
-      <!-- Score range filter -->
       <div class="score-filter-row">
-        <label>Score mínimo: <span id="score-filter-val">0</span></label>
+        <label>Score minimo: <span id="score-filter-val">0</span></label>
         <input type="range" id="filter-score" min="0" max="10" step="0.5" value="0" />
       </div>
-
-      <!-- Product list -->
       <div id="product-list" class="product-list"></div>
-
-      <!-- Empty state -->
       <div id="empty-state" class="empty-state hidden">
         <p>Nenhum produto encontrado.</p>
         <button class="btn-primary" id="btn-empty-add">+ Adicionar primeiro produto</button>
       </div>
-
     </div>
   </template>
 
-  <!-- TEMPLATE: ADD / EDIT PRODUCT FORM -->
   <template id="tpl-product-form">
     <form id="product-form" class="product-form" autocomplete="off">
 
-      <!-- SECTION 1: Basic Info -->
       <div class="form-section">
         <div class="form-section-header" data-toggle="section-basic">
-          <span>1. Informações Básicas</span>
-          <span class="toggle-arrow">&#9660;</span>
+          <span>1. Informacoes Basicas</span><span class="toggle-arrow">&#9660;</span>
         </div>
         <div class="form-section-body" id="section-basic">
-
           <div class="form-group">
             <label>Nome do Produto *</label>
             <input type="text" name="productName" placeholder="Ex: LFP 18650 3000mAh" required />
           </div>
-
           <div class="form-group">
             <label>Fornecedor *</label>
             <select name="supplierId" id="supplier-select" required>
@@ -127,7 +1212,6 @@
             </select>
             <button type="button" class="btn-link" id="btn-new-supplier-inline">+ Novo fornecedor</button>
           </div>
-
           <div class="form-group">
             <label>Categoria</label>
             <select name="category">
@@ -143,17 +1227,14 @@
               <option value="Other">Other</option>
             </select>
           </div>
-
           <div class="form-group">
-            <label>Aplicação</label>
+            <label>Aplicacao</label>
             <input type="text" name="application" placeholder="Ex: E-bike, UPS, Solar..." />
           </div>
-
           <div class="form-group">
             <label>Diferencial Principal</label>
             <textarea name="keyDifferential" rows="2" placeholder="O que torna este produto especial?"></textarea>
           </div>
-
           <div class="form-group">
             <label>Tipo de Marca</label>
             <select name="brandType">
@@ -163,7 +1244,6 @@
               <option value="OEM">OEM</option>
             </select>
           </div>
-
           <div class="form-group">
             <label>Status</label>
             <select name="status">
@@ -176,88 +1256,48 @@
               <option value="Discarded">Discarded</option>
             </select>
           </div>
-
           <div class="form-group">
-            <label>Urgência</label>
+            <label>Urgencia</label>
             <div class="radio-group">
               <label class="radio-label"><input type="radio" name="urgency" value="low" /> Baixa</label>
-              <label class="radio-label"><input type="radio" name="urgency" value="medium" checked /> Média</label>
+              <label class="radio-label"><input type="radio" name="urgency" value="medium" checked /> Media</label>
               <label class="radio-label"><input type="radio" name="urgency" value="high" /> Alta</label>
             </div>
           </div>
-
           <div class="form-group">
-            <label>Próxima Ação</label>
+            <label>Proxima Acao</label>
             <input type="text" name="nextAction" placeholder="Ex: Solicitar datasheet, agendar visita..." />
           </div>
-
           <div class="form-group">
             <label>Foto do Produto</label>
             <input type="file" name="photo" id="photo-input" accept="image/*" capture="environment" />
             <div id="photo-preview" class="photo-preview hidden"></div>
           </div>
-
         </div>
       </div>
 
-      <!-- SECTION 2: Technical Info -->
       <div class="form-section">
         <div class="form-section-header" data-toggle="section-tech">
-          <span>2. Informações Técnicas</span>
-          <span class="toggle-arrow">&#9660;</span>
+          <span>2. Informacoes Tecnicas</span><span class="toggle-arrow">&#9660;</span>
         </div>
         <div class="form-section-body collapsed" id="section-tech">
-
-          <div class="form-group">
-            <label>Química</label>
-            <input type="text" name="chemistry" placeholder="Ex: LFP, NMC, LiPo..." />
-          </div>
-
-          <div class="form-group">
-            <label>Formato</label>
-            <input type="text" name="format" placeholder="Ex: 18650, prismatic, pouch..." />
-          </div>
-
+          <div class="form-group"><label>Quimica</label><input type="text" name="chemistry" placeholder="Ex: LFP, NMC, LiPo..." /></div>
+          <div class="form-group"><label>Formato</label><input type="text" name="format" placeholder="Ex: 18650, prismatic, pouch..." /></div>
           <div class="form-row">
-            <div class="form-group">
-              <label>Tensão Nominal (V)</label>
-              <input type="text" name="nominalVoltage" placeholder="Ex: 3.2V" />
-            </div>
-            <div class="form-group">
-              <label>Capacidade</label>
-              <input type="text" name="capacity" placeholder="Ex: 100Ah" />
-            </div>
+            <div class="form-group"><label>Tensao Nominal (V)</label><input type="text" name="nominalVoltage" placeholder="Ex: 3.2V" /></div>
+            <div class="form-group"><label>Capacidade</label><input type="text" name="capacity" placeholder="Ex: 100Ah" /></div>
           </div>
-
           <div class="form-row">
-            <div class="form-group">
-              <label>Corrente de Descarga</label>
-              <input type="text" name="dischargeCurrent" placeholder="Ex: 1C, 100A" />
-            </div>
-            <div class="form-group">
-              <label>Corrente de Pico</label>
-              <input type="text" name="peakCurrent" placeholder="Ex: 2C, 200A" />
-            </div>
+            <div class="form-group"><label>Corrente de Descarga</label><input type="text" name="dischargeCurrent" placeholder="Ex: 1C" /></div>
+            <div class="form-group"><label>Corrente de Pico</label><input type="text" name="peakCurrent" placeholder="Ex: 2C" /></div>
           </div>
-
           <div class="form-row">
-            <div class="form-group">
-              <label>Ciclos de Vida</label>
-              <input type="text" name="cycleLife" placeholder="Ex: 2000+" />
-            </div>
-            <div class="form-group">
-              <label>Faixa de Temperatura</label>
-              <input type="text" name="temperatureRange" placeholder="Ex: -20°C ~ 60°C" />
-            </div>
+            <div class="form-group"><label>Ciclos de Vida</label><input type="text" name="cycleLife" placeholder="Ex: 2000+" /></div>
+            <div class="form-group"><label>Faixa de Temperatura</label><input type="text" name="temperatureRange" placeholder="Ex: -20C ~ 60C" /></div>
           </div>
-
+          <div class="form-group"><label>Protecoes Incluidas</label><input type="text" name="protectionsIncluded" placeholder="Ex: OVP, UVP, OTP, SCP..." /></div>
           <div class="form-group">
-            <label>Proteções Incluídas</label>
-            <input type="text" name="protectionsIncluded" placeholder="Ex: OVP, UVP, OTP, SCP..." />
-          </div>
-
-          <div class="form-group">
-            <label>Certificações</label>
+            <label>Certificacoes</label>
             <div class="checkbox-group" id="certifications-group">
               <label class="check-label"><input type="checkbox" name="certifications" value="UN38.3" /> UN38.3</label>
               <label class="check-label"><input type="checkbox" name="certifications" value="MSDS" /> MSDS</label>
@@ -267,137 +1307,58 @@
               <label class="check-label"><input type="checkbox" name="certifications" value="Other" /> Other</label>
             </div>
           </div>
-
           <div class="form-row">
             <div class="form-group">
               <label>Tem Datasheet?</label>
-              <div class="toggle-wrap">
-                <input type="checkbox" name="hasDatasheet" id="toggle-datasheet" class="toggle-input" />
-                <label for="toggle-datasheet" class="toggle-label"></label>
-              </div>
+              <div class="toggle-wrap"><input type="checkbox" name="hasDatasheet" id="toggle-datasheet" class="toggle-input" /><label for="toggle-datasheet" class="toggle-label"></label></div>
             </div>
             <div class="form-group">
               <label>Tem Test Reports?</label>
-              <div class="toggle-wrap">
-                <input type="checkbox" name="hasTestReports" id="toggle-testreports" class="toggle-input" />
-                <label for="toggle-testreports" class="toggle-label"></label>
-              </div>
+              <div class="toggle-wrap"><input type="checkbox" name="hasTestReports" id="toggle-testreports" class="toggle-input" /><label for="toggle-testreports" class="toggle-label"></label></div>
             </div>
           </div>
-
         </div>
       </div>
 
-      <!-- SECTION 3: Commercial Info -->
       <div class="form-section">
         <div class="form-section-header" data-toggle="section-commercial">
-          <span>3. Informações Comerciais</span>
-          <span class="toggle-arrow">&#9660;</span>
+          <span>3. Informacoes Comerciais</span><span class="toggle-arrow">&#9660;</span>
         </div>
         <div class="form-section-body collapsed" id="section-commercial">
-
           <div class="form-row">
-            <div class="form-group">
-              <label>MOQ</label>
-              <input type="text" name="moq" placeholder="Ex: 500 pcs" />
-            </div>
-            <div class="form-group">
-              <label>Preço Unitário (USD)</label>
-              <input type="text" name="unitPrice" placeholder="Ex: $12.50" />
-            </div>
+            <div class="form-group"><label>MOQ</label><input type="text" name="moq" placeholder="Ex: 500 pcs" /></div>
+            <div class="form-group"><label>Preco Unitario (USD)</label><input type="text" name="unitPrice" placeholder="Ex: $12.50" /></div>
           </div>
-
-          <div class="form-group">
-            <label>Faixa de Preço</label>
-            <input type="text" name="priceRange" placeholder="Ex: $10–$15 dependendo qtd." />
-          </div>
-
+          <div class="form-group"><label>Faixa de Preco</label><input type="text" name="priceRange" placeholder="Ex: $10-$15 dependendo qtd." /></div>
           <div class="form-row">
-            <div class="form-group">
-              <label>Lead Time</label>
-              <input type="text" name="leadTime" placeholder="Ex: 30 dias" />
-            </div>
-            <div class="form-group">
-              <label>Condições de Pagamento</label>
-              <input type="text" name="paymentTerms" placeholder="Ex: 30% T/T + 70%" />
-            </div>
+            <div class="form-group"><label>Lead Time</label><input type="text" name="leadTime" placeholder="Ex: 30 dias" /></div>
+            <div class="form-group"><label>Condicoes de Pagamento</label><input type="text" name="paymentTerms" placeholder="Ex: 30% T/T + 70%" /></div>
           </div>
-
           <div class="form-row toggles-row">
-            <div class="form-group">
-              <label>Faz OEM?</label>
-              <div class="toggle-wrap">
-                <input type="checkbox" name="doesOEM" id="toggle-oem" class="toggle-input" />
-                <label for="toggle-oem" class="toggle-label"></label>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Embalagem Custom?</label>
-              <div class="toggle-wrap">
-                <input type="checkbox" name="customPackaging" id="toggle-packaging" class="toggle-input" />
-                <label for="toggle-packaging" class="toggle-label"></label>
-              </div>
-            </div>
+            <div class="form-group"><label>Faz OEM?</label><div class="toggle-wrap"><input type="checkbox" name="doesOEM" id="toggle-oem" class="toggle-input" /><label for="toggle-oem" class="toggle-label"></label></div></div>
+            <div class="form-group"><label>Embalagem Custom?</label><div class="toggle-wrap"><input type="checkbox" name="customPackaging" id="toggle-packaging" class="toggle-input" /><label for="toggle-packaging" class="toggle-label"></label></div></div>
           </div>
-
           <div class="form-row toggles-row">
-            <div class="form-group">
-              <label>Exclusividade?</label>
-              <div class="toggle-wrap">
-                <input type="checkbox" name="exclusivityPossible" id="toggle-exclusivity" class="toggle-input" />
-                <label for="toggle-exclusivity" class="toggle-label"></label>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Amostra Disponível?</label>
-              <div class="toggle-wrap">
-                <input type="checkbox" name="sampleAvailable" id="toggle-sample" class="toggle-input" />
-                <label for="toggle-sample" class="toggle-label"></label>
-              </div>
-            </div>
+            <div class="form-group"><label>Exclusividade?</label><div class="toggle-wrap"><input type="checkbox" name="exclusivityPossible" id="toggle-exclusivity" class="toggle-input" /><label for="toggle-exclusivity" class="toggle-label"></label></div></div>
+            <div class="form-group"><label>Amostra Disponivel?</label><div class="toggle-wrap"><input type="checkbox" name="sampleAvailable" id="toggle-sample" class="toggle-input" /><label for="toggle-sample" class="toggle-label"></label></div></div>
           </div>
-
-          <div class="form-group">
-            <label>Lead Time da Amostra</label>
-            <input type="text" name="sampleLeadTime" placeholder="Ex: 7 dias" />
-          </div>
-
+          <div class="form-group"><label>Lead Time da Amostra</label><input type="text" name="sampleLeadTime" placeholder="Ex: 7 dias" /></div>
         </div>
       </div>
 
-      <!-- SECTION 4: Logistics -->
       <div class="form-section">
         <div class="form-section-header" data-toggle="section-logistics">
-          <span>4. Logística</span>
-          <span class="toggle-arrow">&#9660;</span>
+          <span>4. Logistica</span><span class="toggle-arrow">&#9660;</span>
         </div>
         <div class="form-section-body collapsed" id="section-logistics">
-
           <div class="form-row">
-            <div class="form-group">
-              <label>Peso</label>
-              <input type="text" name="weight" placeholder="Ex: 2.5 kg" />
-            </div>
-            <div class="form-group">
-              <label>Dimensões</label>
-              <input type="text" name="dimensions" placeholder="Ex: 200x100x50mm" />
-            </div>
+            <div class="form-group"><label>Peso</label><input type="text" name="weight" placeholder="Ex: 2.5 kg" /></div>
+            <div class="form-group"><label>Dimensoes</label><input type="text" name="dimensions" placeholder="Ex: 200x100x50mm" /></div>
           </div>
-
           <div class="form-row">
-            <div class="form-group">
-              <label>HS Code</label>
-              <input type="text" name="hsCode" placeholder="Ex: 8507.60" />
-            </div>
-            <div class="form-group">
-              <label>Carga Perigosa?</label>
-              <div class="toggle-wrap">
-                <input type="checkbox" name="dangerousGoods" id="toggle-dangerous" class="toggle-input" />
-                <label for="toggle-dangerous" class="toggle-label"></label>
-              </div>
-            </div>
+            <div class="form-group"><label>HS Code</label><input type="text" name="hsCode" placeholder="Ex: 8507.60" /></div>
+            <div class="form-group"><label>Carga Perigosa?</label><div class="toggle-wrap"><input type="checkbox" name="dangerousGoods" id="toggle-dangerous" class="toggle-input" /><label for="toggle-dangerous" class="toggle-label"></label></div></div>
           </div>
-
           <div class="form-group">
             <label>Tipo de Envio</label>
             <div class="checkbox-group">
@@ -406,9 +1367,8 @@
               <label class="check-label"><input type="checkbox" name="shippingType" value="Courier" /> Courier</label>
             </div>
           </div>
-
           <div class="form-group">
-            <label>Complexidade de Importação</label>
+            <label>Complexidade de Importacao</label>
             <select name="importComplexity">
               <option value="">Selecionar...</option>
               <option value="Easy">Easy</option>
@@ -416,200 +1376,961 @@
               <option value="Hard">Hard</option>
             </select>
           </div>
-
         </div>
       </div>
 
-      <!-- SECTION 5: Scoring -->
       <div class="form-section">
         <div class="form-section-header" data-toggle="section-scoring">
-          <span>5. Avaliação (Score)</span>
-          <span class="toggle-arrow">&#9660;</span>
+          <span>5. Avaliacao (Score)</span><span class="toggle-arrow">&#9660;</span>
         </div>
         <div class="form-section-body collapsed" id="section-scoring">
-
           <div class="score-preview-wrap">
             <div class="score-circle" id="score-circle-form">
               <span id="score-value-form">0.0</span>
             </div>
             <span class="score-label-hint">Score Final</span>
           </div>
-
           <div class="form-group slider-group">
-            <label>Diferenciação <span class="weight-tag">30%</span> <span class="slider-val" id="val-differentiation">5</span></label>
+            <label>Diferenciacao <span class="weight-tag">30%</span> <span class="slider-val" id="val-differentiation">5</span></label>
             <input type="range" name="differentiation" min="0" max="10" step="1" value="5" data-score />
           </div>
-
           <div class="form-group slider-group">
             <label>Potencial de Margem <span class="weight-tag">25%</span> <span class="slider-val" id="val-marginPotential">5</span></label>
             <input type="range" name="marginPotential" min="0" max="10" step="1" value="5" data-score />
           </div>
-
           <div class="form-group slider-group">
-            <label>Fit com o Negócio <span class="weight-tag">20%</span> <span class="slider-val" id="val-businessFit">5</span></label>
+            <label>Fit com o Negocio <span class="weight-tag">20%</span> <span class="slider-val" id="val-businessFit">5</span></label>
             <input type="range" name="businessFit" min="0" max="10" step="1" value="5" data-score />
           </div>
-
           <div class="form-group slider-group">
             <label>Facilidade de Importar <span class="weight-tag">15%</span> <span class="slider-val" id="val-importEase">5</span></label>
             <input type="range" name="importEase" min="0" max="10" step="1" value="5" data-score />
           </div>
-
           <div class="form-group slider-group">
-            <label>Confiança no Fornecedor <span class="weight-tag">10%</span> <span class="slider-val" id="val-supplierTrust">5</span></label>
+            <label>Confianca no Fornecedor <span class="weight-tag">10%</span> <span class="slider-val" id="val-supplierTrust">5</span></label>
             <input type="range" name="supplierTrust" min="0" max="10" step="1" value="5" data-score />
           </div>
-
         </div>
       </div>
 
-      <!-- SECTION 6: Notes -->
       <div class="form-section">
         <div class="form-section-header" data-toggle="section-notes">
-          <span>6. Notas</span>
-          <span class="toggle-arrow">&#9660;</span>
+          <span>6. Notas</span><span class="toggle-arrow">&#9660;</span>
         </div>
         <div class="form-section-body collapsed" id="section-notes">
           <div class="form-group">
-            <textarea name="notes" rows="4" placeholder="Observações gerais, impressões, follow-ups..."></textarea>
+            <textarea name="notes" rows="4" placeholder="Observacoes gerais, impressoes, follow-ups..."></textarea>
           </div>
         </div>
       </div>
 
-      <!-- FORM ACTIONS -->
       <div class="form-actions">
-        <button type="submit" class="btn-primary btn-large">&#10003; Salvar Produto</button>
+        <button type="submit" class="btn-primary btn-large">Salvar Produto</button>
         <button type="button" class="btn-secondary btn-large" id="btn-cancel-form">Cancelar</button>
       </div>
-
     </form>
   </template>
 
-  <!-- TEMPLATE: PRODUCT DETAIL -->
   <template id="tpl-product-detail">
-    <div class="view-detail" id="product-detail-view">
-      <!-- Rendered dynamically by JS -->
-    </div>
+    <div class="view-detail" id="product-detail-view"></div>
   </template>
 
-  <!-- TEMPLATE: SUMMARY / INSIGHTS -->
   <template id="tpl-summary">
     <div class="view-summary">
-
-      <div class="summary-header">
-        <h2>Resumo da Feira</h2>
-      </div>
-
-      <div id="summary-stats" class="summary-stats">
-        <!-- Rendered by JS -->
-      </div>
-
-      <div class="summary-section">
-        <h3>&#127942; Top Produtos</h3>
-        <div id="summary-top-products"></div>
-      </div>
-
-      <div class="summary-section">
-        <h3>&#128203; Por Status</h3>
-        <div id="summary-by-status"></div>
-      </div>
-
-      <div class="summary-section">
-        <h3>&#128200; Por Categoria</h3>
-        <div id="summary-by-category"></div>
-      </div>
-
-      <div class="summary-section">
-        <h3>&#128680; Lista de Prioridades</h3>
-        <div id="summary-priority-list"></div>
-      </div>
-
+      <div class="summary-header"><h2>Resumo da Feira</h2></div>
+      <div id="summary-stats" class="summary-stats"></div>
+      <div class="summary-section"><h3>Top Produtos</h3><div id="summary-top-products"></div></div>
+      <div class="summary-section"><h3>Por Status</h3><div id="summary-by-status"></div></div>
+      <div class="summary-section"><h3>Por Categoria</h3><div id="summary-by-category"></div></div>
+      <div class="summary-section"><h3>Lista de Prioridades</h3><div id="summary-priority-list"></div></div>
       <div class="summary-section export-section">
-        <h3>&#128229; Exportar Dados</h3>
-        <button class="btn-primary btn-large" id="btn-export-json">&#128196; Exportar JSON</button>
-        <button class="btn-secondary btn-large" id="btn-export-csv">&#128202; Exportar CSV</button>
+        <h3>Exportar Dados</h3>
+        <button class="btn-primary btn-large" id="btn-export-json">Exportar JSON</button>
+        <button class="btn-secondary btn-large" id="btn-export-csv">Exportar CSV</button>
       </div>
-
     </div>
   </template>
 
-  <!-- TEMPLATE: SUPPLIERS LIST -->
   <template id="tpl-suppliers">
     <div class="view-suppliers">
-      <div id="suppliers-list" class="suppliers-list">
-        <!-- Rendered by JS -->
-      </div>
-      <div id="suppliers-empty" class="empty-state hidden">
-        <p>Nenhum fornecedor cadastrado.</p>
-      </div>
+      <div id="suppliers-list" class="suppliers-list"></div>
+      <div id="suppliers-empty" class="empty-state hidden"><p>Nenhum fornecedor cadastrado.</p></div>
     </div>
   </template>
 
-  <!-- TEMPLATE: SUPPLIER FORM -->
   <template id="tpl-supplier-form">
     <form id="supplier-form" class="product-form" autocomplete="off">
-
-      <div class="form-group">
-        <label>Nome da Empresa *</label>
-        <input type="text" name="supplierName" placeholder="Ex: Shenzhen Battery Co." required />
-      </div>
-
-      <div class="form-group">
-        <label>Nome do Contato</label>
-        <input type="text" name="contactName" placeholder="Ex: David Li" />
-      </div>
-
+      <div class="form-group"><label>Nome da Empresa *</label><input type="text" name="supplierName" placeholder="Ex: Shenzhen Battery Co." required /></div>
+      <div class="form-group"><label>Nome do Contato</label><input type="text" name="contactName" placeholder="Ex: David Li" /></div>
       <div class="form-row">
-        <div class="form-group">
-          <label>WeChat</label>
-          <input type="text" name="wechat" placeholder="ID WeChat" />
-        </div>
-        <div class="form-group">
-          <label>WhatsApp</label>
-          <input type="text" name="whatsapp" placeholder="+86..." />
-        </div>
+        <div class="form-group"><label>WeChat</label><input type="text" name="wechat" placeholder="ID WeChat" /></div>
+        <div class="form-group"><label>WhatsApp</label><input type="text" name="whatsapp" placeholder="+86..." /></div>
       </div>
-
-      <div class="form-group">
-        <label>E-mail</label>
-        <input type="email" name="email" placeholder="contato@empresa.com" />
-      </div>
-
+      <div class="form-group"><label>E-mail</label><input type="email" name="email" placeholder="contato@empresa.com" /></div>
       <div class="form-row">
-        <div class="form-group">
-          <label>Estande (Booth)</label>
-          <input type="text" name="booth" placeholder="Ex: Hall 9.2 C15" />
-        </div>
-        <div class="form-group">
-          <label>Cidade</label>
-          <input type="text" name="city" placeholder="Ex: Shenzhen" />
-        </div>
+        <div class="form-group"><label>Estande (Booth)</label><input type="text" name="booth" placeholder="Ex: Hall 9.2 C15" /></div>
+        <div class="form-group"><label>Cidade</label><input type="text" name="city" placeholder="Ex: Shenzhen" /></div>
       </div>
-
-      <div class="form-group">
-        <label>Website</label>
-        <input type="url" name="website" placeholder="https://..." />
-      </div>
-
-      <div class="form-group">
-        <label>Notas</label>
-        <textarea name="notes" rows="3" placeholder="Impressões gerais, reputação, observações..."></textarea>
-      </div>
-
+      <div class="form-group"><label>Website</label><input type="url" name="website" placeholder="https://..." /></div>
+      <div class="form-group"><label>Notas</label><textarea name="notes" rows="3" placeholder="Impressoes gerais, reputacao, observacoes..."></textarea></div>
       <div class="form-actions">
-        <button type="submit" class="btn-primary btn-large">&#10003; Salvar Fornecedor</button>
+        <button type="submit" class="btn-primary btn-large">Salvar Fornecedor</button>
         <button type="button" class="btn-secondary btn-large" id="btn-cancel-supplier">Cancelar</button>
       </div>
-
     </form>
   </template>
 
-  <!-- FAB: Floating Add Button -->
-  <button id="fab-add" class="fab" aria-label="Adicionar produto">+</button>
+  <script>
+  // ═══════════════════════════════════════════════════════════
+  //  STATE
+  // ═══════════════════════════════════════════════════════════
+  const LS = {
+    get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+    set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
+    remove: k => localStorage.removeItem(k)
+  };
 
-  <!-- TOAST NOTIFICATION -->
-  <div id="toast" class="toast hidden"></div>
+  function genId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
 
-  <script src="script.js"></script>
+  // Device identity
+  let DEVICE_ID = LS.get('cf_device_id') || genId();
+  LS.set('cf_device_id', DEVICE_ID);
+
+  let DEVICE_NAME = LS.get('cf_device_name') || '';
+  let SCRIPT_URL  = LS.get('cf_script_url') || '';
+
+  let products  = LS.get('cf_products')  || [];
+  let suppliers = LS.get('cf_suppliers') || [];
+
+  let currentView    = 'home';
+  let editingProduct = null;
+  let editingSupplier = null;
+  let syncTimer      = null;
+  let pendingSync    = false;
+
+  // ═══════════════════════════════════════════════════════════
+  //  PERSISTENCE
+  // ═══════════════════════════════════════════════════════════
+  function saveLocal() {
+    LS.set('cf_products', products);
+    LS.set('cf_suppliers', suppliers);
+    pendingSync = true;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  SYNC
+  // ═══════════════════════════════════════════════════════════
+  function setSyncBar(state, msg) {
+    const bar = document.getElementById('sync-bar');
+    const txt = document.getElementById('sync-msg');
+    if (!bar) return;
+    bar.className = state;
+    txt.textContent = msg;
+  }
+
+  async function syncWithServer(force = false) {
+    if (!SCRIPT_URL) {
+      setSyncBar('error', 'Sem URL — configure nas opcoes');
+      return;
+    }
+    if (!force && !pendingSync) return;
+
+    setSyncBar('syncing', 'Sincronizando...');
+
+    try {
+      const payload = {
+        deviceId:  DEVICE_ID,
+        products:  products.map(p => ({
+          id: p.id,
+          deviceId: p.deviceId || DEVICE_ID,
+          updatedAt: p.updatedAt || Date.now(),
+          data: p
+        })),
+        suppliers: suppliers.map(s => ({
+          id: s.id,
+          deviceId: s.deviceId || DEVICE_ID,
+          updatedAt: s.updatedAt || Date.now(),
+          data: s
+        }))
+      };
+
+      const res  = await fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+
+      if (json.ok) {
+        // Merge server data back
+        products  = json.products  || products;
+        suppliers = json.suppliers || suppliers;
+        LS.set('cf_products',  products);
+        LS.set('cf_suppliers', suppliers);
+        pendingSync = false;
+
+        const ts = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        setSyncBar('ok', `Sincronizado as ${ts} — ${DEVICE_NAME || DEVICE_ID.slice(0,6)}`);
+
+        // Re-render if on home/suppliers
+        if (currentView === 'home')      renderHome();
+        if (currentView === 'suppliers') renderSuppliers();
+      } else {
+        setSyncBar('error', 'Erro: ' + (json.error || 'desconhecido'));
+      }
+    } catch (e) {
+      setSyncBar('error', 'Falha na conexao — dados salvos localmente');
+    }
+  }
+
+  function scheduleSync() {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => syncWithServer(), 3000);
+  }
+
+  // Auto sync every 30s
+  setInterval(() => syncWithServer(), 30000);
+
+  // ═══════════════════════════════════════════════════════════
+  //  SCORE
+  // ═══════════════════════════════════════════════════════════
+  function calcScore(p) {
+    const w = { differentiation: .30, marginPotential: .25, businessFit: .20, importEase: .15, supplierTrust: .10 };
+    return Object.keys(w).reduce((acc, k) => acc + (Number(p[k]) || 0) * w[k], 0);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  ROUTER / VIEWS
+  // ═══════════════════════════════════════════════════════════
+  function navigate(view, opts = {}) {
+    currentView = view;
+    const mc = document.getElementById('main-content');
+    const hTitle = document.getElementById('header-title');
+    const btnBack = document.getElementById('btn-back');
+    const btnAct  = document.getElementById('btn-header-action');
+
+    // Reset header
+    btnBack.classList.add('hidden');
+    btnAct.classList.remove('hidden');
+    btnAct.innerHTML = '&#9881;';
+    btnAct.onclick = openSettings;
+
+    // Update nav
+    document.querySelectorAll('.nav-item').forEach(b => {
+      b.classList.toggle('active', b.dataset.view === view);
+    });
+
+    // Fab visibility
+    const fab = document.getElementById('fab-add');
+    fab.style.display = ['home','suppliers'].includes(view) ? 'flex' : 'none';
+
+    switch (view) {
+      case 'home':
+        hTitle.textContent = 'Canton Fair';
+        mc.innerHTML = '';
+        mc.appendChild(document.getElementById('tpl-home').content.cloneNode(true));
+        initHome();
+        break;
+
+      case 'summary':
+        hTitle.textContent = 'Resumo';
+        mc.innerHTML = '';
+        mc.appendChild(document.getElementById('tpl-summary').content.cloneNode(true));
+        renderSummary();
+        break;
+
+      case 'suppliers':
+        hTitle.textContent = 'Fornecedores';
+        mc.innerHTML = '';
+        mc.appendChild(document.getElementById('tpl-suppliers').content.cloneNode(true));
+        renderSuppliers();
+        break;
+
+      case 'add-product':
+      case 'edit-product':
+        hTitle.textContent = view === 'add-product' ? 'Novo Produto' : 'Editar Produto';
+        btnBack.classList.remove('hidden');
+        btnBack.onclick = () => navigate('home');
+        btnAct.classList.add('hidden');
+        mc.innerHTML = '';
+        mc.appendChild(document.getElementById('tpl-product-form').content.cloneNode(true));
+        initProductForm(opts.product || null);
+        fab.style.display = 'none';
+        break;
+
+      case 'product-detail':
+        hTitle.textContent = 'Produto';
+        btnBack.classList.remove('hidden');
+        btnBack.onclick = () => navigate('home');
+        btnAct.innerHTML = '&#9998;';
+        btnAct.onclick = () => navigate('edit-product', { product: opts.product });
+        mc.innerHTML = '';
+        mc.appendChild(document.getElementById('tpl-product-detail').content.cloneNode(true));
+        renderProductDetail(opts.product);
+        fab.style.display = 'none';
+        break;
+
+      case 'add-supplier':
+      case 'edit-supplier':
+        hTitle.textContent = view === 'add-supplier' ? 'Novo Fornecedor' : 'Editar Fornecedor';
+        btnBack.classList.remove('hidden');
+        btnBack.onclick = () => navigate('suppliers');
+        btnAct.classList.add('hidden');
+        mc.innerHTML = '';
+        mc.appendChild(document.getElementById('tpl-supplier-form').content.cloneNode(true));
+        initSupplierForm(opts.supplier || null);
+        fab.style.display = 'none';
+        break;
+    }
+
+    mc.scrollTop = 0;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  HOME
+  // ═══════════════════════════════════════════════════════════
+  function initHome() {
+    renderHome();
+
+    document.getElementById('search-input').addEventListener('input', renderHome);
+    document.getElementById('filter-category').addEventListener('change', renderHome);
+    document.getElementById('filter-status').addEventListener('change', renderHome);
+    document.getElementById('filter-sort').addEventListener('change', renderHome);
+    document.getElementById('filter-score').addEventListener('input', function () {
+      document.getElementById('score-filter-val').textContent = this.value;
+      renderHome();
+    });
+
+    const emptyAdd = document.getElementById('btn-empty-add');
+    if (emptyAdd) emptyAdd.addEventListener('click', () => navigate('add-product'));
+  }
+
+  function renderHome() {
+    const list = document.getElementById('product-list');
+    const empty = document.getElementById('empty-state');
+    if (!list) return;
+
+    const q      = (document.getElementById('search-input')?.value || '').toLowerCase();
+    const cat    = document.getElementById('filter-category')?.value || '';
+    const status = document.getElementById('filter-status')?.value || '';
+    const sort   = document.getElementById('filter-sort')?.value || 'score';
+    const minScore = parseFloat(document.getElementById('filter-score')?.value || 0);
+
+    let filtered = products.filter(p => {
+      const sup = suppliers.find(s => s.id === p.supplierId);
+      const searchStr = [p.productName, p.category, p.application, sup?.supplierName].filter(Boolean).join(' ').toLowerCase();
+      if (q && !searchStr.includes(q)) return false;
+      if (cat && p.category !== cat) return false;
+      if (status && p.status !== status) return false;
+      if (calcScore(p) < minScore) return false;
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      if (sort === 'score')   return calcScore(b) - calcScore(a);
+      if (sort === 'recent')  return (b.updatedAt || 0) - (a.updatedAt || 0);
+      if (sort === 'urgency') {
+        const u = { high: 3, medium: 2, low: 1 };
+        return (u[b.urgency] || 0) - (u[a.urgency] || 0);
+      }
+      return 0;
+    });
+
+    list.innerHTML = '';
+
+    if (!filtered.length) {
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+
+    filtered.forEach(p => {
+      const score = calcScore(p);
+      const sup = suppliers.find(s => s.id === p.supplierId);
+      const scoreCls = score >= 7 ? 'high' : score >= 4 ? 'medium' : 'low';
+
+      const card = document.createElement('div');
+      card.className = 'product-card' +
+        (p.status === 'Priority' ? ' priority' : '') +
+        (p.urgency === 'high' ? ' high-urgency' : '');
+
+      const devName = p.deviceName || p.deviceId?.slice(0, 6) || '';
+      const tagsHTML = [
+        p.category ? `<span class="tag">${p.category}</span>` : '',
+        p.status   ? `<span class="tag status-${p.status.toLowerCase().replace(/ /g,'-')}">${p.status}</span>` : '',
+        p.urgency === 'high' ? `<span class="tag urgency-high">Urgente</span>` : '',
+      ].filter(Boolean).join('');
+
+      card.innerHTML = `
+        <span class="card-device">${devName}</span>
+        <div class="card-top">
+          <span class="card-name">${p.productName || 'Sem nome'}</span>
+          <span class="score-badge ${scoreCls}">${score.toFixed(1)}</span>
+        </div>
+        ${sup ? `<div class="card-supplier">${sup.supplierName}${sup.booth ? ' · ' + sup.booth : ''}</div>` : ''}
+        <div class="card-tags">${tagsHTML}</div>
+      `;
+      card.addEventListener('click', () => navigate('product-detail', { product: p }));
+      list.appendChild(card);
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  PRODUCT FORM
+  // ═══════════════════════════════════════════════════════════
+  function initProductForm(product) {
+    // Populate supplier dropdown
+    const sel = document.getElementById('supplier-select');
+    suppliers.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.supplierName;
+      sel.appendChild(opt);
+    });
+
+    // Collapsible sections
+    document.querySelectorAll('.form-section-header').forEach(h => {
+      h.addEventListener('click', () => {
+        const body = document.getElementById(h.dataset.toggle);
+        const arrow = h.querySelector('.toggle-arrow');
+        body.classList.toggle('collapsed');
+        arrow.style.transform = body.classList.contains('collapsed') ? 'rotate(-90deg)' : '';
+      });
+    });
+
+    // Score sliders
+    const scoreFields = document.querySelectorAll('[data-score]');
+    function updateScore() {
+      const vals = { differentiation: 5, marginPotential: 5, businessFit: 5, importEase: 5, supplierTrust: 5 };
+      scoreFields.forEach(s => {
+        vals[s.name] = Number(s.value);
+        const el = document.getElementById('val-' + s.name);
+        if (el) el.textContent = s.value;
+      });
+      const score = calcScore(vals);
+      document.getElementById('score-value-form').textContent = score.toFixed(1);
+    }
+    scoreFields.forEach(s => s.addEventListener('input', updateScore));
+    updateScore();
+
+    // Photo preview
+    const photoInput = document.getElementById('photo-input');
+    const photoPreview = document.getElementById('photo-preview');
+    photoInput?.addEventListener('change', function () {
+      const file = this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        photoPreview.innerHTML = `<img src="${e.target.result}" />`;
+        photoPreview.classList.remove('hidden');
+        photoPreview.dataset.base64 = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Pre-fill if editing
+    if (product) {
+      const form = document.getElementById('product-form');
+      Object.entries(product).forEach(([k, v]) => {
+        const el = form.elements[k];
+        if (!el) return;
+        if (el.type === 'checkbox') { el.checked = !!v; return; }
+        if (el.type === 'radio' || el.tagName === 'UNDEFINED') {
+          const rb = form.querySelector(`[name="${k}"][value="${v}"]`);
+          if (rb) rb.checked = true;
+          return;
+        }
+        if (el.type === 'range') {
+          el.value = v;
+          const label = document.getElementById('val-' + k);
+          if (label) label.textContent = v;
+          return;
+        }
+        if (el.nodeName === 'SELECT') { el.value = v; return; }
+        el.value = v;
+      });
+
+      // Checkboxes for arrays (certifications, shippingType)
+      if (Array.isArray(product.certifications)) {
+        product.certifications.forEach(c => {
+          const cb = form.querySelector(`[name="certifications"][value="${c}"]`);
+          if (cb) cb.checked = true;
+        });
+      }
+      if (Array.isArray(product.shippingType)) {
+        product.shippingType.forEach(c => {
+          const cb = form.querySelector(`[name="shippingType"][value="${c}"]`);
+          if (cb) cb.checked = true;
+        });
+      }
+      if (product.photo) {
+        photoPreview.innerHTML = `<img src="${product.photo}" />`;
+        photoPreview.classList.remove('hidden');
+        photoPreview.dataset.base64 = product.photo;
+      }
+      updateScore();
+    }
+
+    // New supplier inline
+    document.getElementById('btn-new-supplier-inline').addEventListener('click', () => {
+      navigate('add-supplier');
+    });
+
+    // Cancel
+    document.getElementById('btn-cancel-form').addEventListener('click', () => navigate('home'));
+
+    // Submit
+    document.getElementById('product-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const form = e.target;
+      const data = {};
+
+      // Collect all named fields
+      const fd = new FormData(form);
+      for (const [k, v] of fd.entries()) {
+        if (['certifications','shippingType'].includes(k)) {
+          data[k] = data[k] ? [...data[k], v] : [v];
+        } else {
+          data[k] = v;
+        }
+      }
+
+      // Radio (urgency)
+      const urgency = form.querySelector('[name="urgency"]:checked');
+      if (urgency) data.urgency = urgency.value;
+
+      // Photo
+      if (photoPreview.dataset.base64) data.photo = photoPreview.dataset.base64;
+
+      // Meta
+      data.id        = (product && product.id) || genId();
+      data.deviceId  = DEVICE_ID;
+      data.deviceName = DEVICE_NAME;
+      data.updatedAt = Date.now();
+
+      if (product) {
+        const idx = products.findIndex(p => p.id === product.id);
+        if (idx >= 0) products[idx] = data;
+      } else {
+        products.push(data);
+      }
+
+      saveLocal();
+      scheduleSync();
+      showToast('Produto salvo');
+      navigate('home');
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  PRODUCT DETAIL
+  // ═══════════════════════════════════════════════════════════
+  function renderProductDetail(p) {
+    const v = document.getElementById('product-detail-view');
+    if (!v) return;
+    const score = calcScore(p);
+    const sup = suppliers.find(s => s.id === p.supplierId);
+
+    const field = (label, val) => val ? `
+      <div>
+        <div class="detail-field-label">${label}</div>
+        <div class="detail-field-val">${val}</div>
+      </div>` : '';
+
+    v.innerHTML = `
+      <div class="detail-hero">
+        ${p.photo ? `<img src="${p.photo}" style="width:100%;border-radius:4px;margin-bottom:14px;max-height:200px;object-fit:cover;" />` : ''}
+        <div class="detail-name">${p.productName || 'Sem nome'}</div>
+        ${sup ? `<div class="detail-supplier-name">${sup.supplierName}${sup.booth ? ' · ' + sup.booth : ''}</div>` : ''}
+        <div class="detail-score-row">
+          <div class="detail-score-big">${score.toFixed(1)}</div>
+          <div class="detail-score-sub">Score<br/>/ 10</div>
+        </div>
+        <div class="detail-tags">
+          ${p.category ? `<span class="tag">${p.category}</span>` : ''}
+          ${p.status   ? `<span class="tag">${p.status}</span>` : ''}
+          ${p.urgency === 'high' ? `<span class="tag urgency-high">Urgente</span>` : ''}
+          ${p.brandType ? `<span class="tag">${p.brandType}</span>` : ''}
+        </div>
+      </div>
+
+      ${p.keyDifferential ? `<div class="detail-section"><h4>Diferencial</h4><p style="font-size:13px;color:var(--text-dim);line-height:1.6">${p.keyDifferential}</p></div>` : ''}
+      ${p.nextAction ? `<div class="detail-section"><h4>Proxima Acao</h4><p style="font-size:14px;color:var(--accent)">${p.nextAction}</p></div>` : ''}
+
+      <div class="detail-section">
+        <h4>Informacoes Tecnicas</h4>
+        <div class="detail-grid">
+          ${field('Quimica', p.chemistry)}
+          ${field('Formato', p.format)}
+          ${field('Tensao', p.nominalVoltage)}
+          ${field('Capacidade', p.capacity)}
+          ${field('Ciclos', p.cycleLife)}
+          ${field('Temperatura', p.temperatureRange)}
+        </div>
+        ${p.certifications?.length ? `<div style="margin-top:10px">${p.certifications.map(c=>`<span class="tag">${c}</span>`).join(' ')}</div>` : ''}
+      </div>
+
+      <div class="detail-section">
+        <h4>Informacoes Comerciais</h4>
+        <div class="detail-grid">
+          ${field('MOQ', p.moq)}
+          ${field('Preco Unit.', p.unitPrice)}
+          ${field('Faixa', p.priceRange)}
+          ${field('Lead Time', p.leadTime)}
+          ${field('Pagamento', p.paymentTerms)}
+          ${field('Amostra LT', p.sampleLeadTime)}
+        </div>
+        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">
+          ${p.doesOEM ? '<span class="tag">OEM</span>' : ''}
+          ${p.customPackaging ? '<span class="tag">Custom Pkg</span>' : ''}
+          ${p.exclusivityPossible ? '<span class="tag">Exclusividade</span>' : ''}
+          ${p.sampleAvailable ? '<span class="tag">Amostra OK</span>' : ''}
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h4>Logistica</h4>
+        <div class="detail-grid">
+          ${field('Peso', p.weight)}
+          ${field('Dimensoes', p.dimensions)}
+          ${field('HS Code', p.hsCode)}
+          ${field('Complexidade', p.importComplexity)}
+        </div>
+        ${p.shippingType?.length ? `<div style="margin-top:10px">${p.shippingType.map(c=>`<span class="tag">${c}</span>`).join(' ')}</div>` : ''}
+        ${p.dangerousGoods ? '<span class="tag" style="margin-top:8px;display:inline-block;border-color:var(--danger);color:var(--danger)">Carga Perigosa</span>' : ''}
+      </div>
+
+      ${p.notes ? `<div class="detail-section"><h4>Notas</h4><p style="font-size:13px;color:var(--text-dim);line-height:1.6;white-space:pre-wrap">${p.notes}</p></div>` : ''}
+
+      <div class="detail-section">
+        <h4>Score Detalhado</h4>
+        <div class="detail-grid">
+          ${field('Diferenciacao', (p.differentiation||5)+'/10')}
+          ${field('Margem', (p.marginPotential||5)+'/10')}
+          ${field('Fit Negocio', (p.businessFit||5)+'/10')}
+          ${field('Importacao', (p.importEase||5)+'/10')}
+          ${field('Fornecedor', (p.supplierTrust||5)+'/10')}
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:var(--text-mute);margin:10px 0">
+        Adicionado por ${p.deviceName || p.deviceId?.slice(0,6) || 'desconhecido'} · ${p.updatedAt ? new Date(p.updatedAt).toLocaleString('pt-BR') : ''}
+      </div>
+
+      <div class="detail-actions">
+        <button class="btn-primary" style="flex:2" id="btn-detail-edit">Editar</button>
+        <button class="btn-danger" id="btn-detail-delete">Excluir</button>
+      </div>
+    `;
+
+    document.getElementById('btn-detail-edit').addEventListener('click', () => navigate('edit-product', { product: p }));
+    document.getElementById('btn-detail-delete').addEventListener('click', () => {
+      if (confirm('Excluir este produto?')) {
+        products = products.filter(x => x.id !== p.id);
+        saveLocal();
+        scheduleSync();
+        showToast('Produto excluido');
+        navigate('home');
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  SUMMARY
+  // ═══════════════════════════════════════════════════════════
+  function renderSummary() {
+    const statsEl = document.getElementById('summary-stats');
+    if (!statsEl) return;
+
+    const total     = products.length;
+    const priority  = products.filter(p => p.status === 'Priority').length;
+    const avgScore  = total ? (products.reduce((a, p) => a + calcScore(p), 0) / total).toFixed(1) : '0.0';
+    const devices   = [...new Set(products.map(p => p.deviceId))].length;
+
+    statsEl.innerHTML = `
+      <div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">Produtos</div></div>
+      <div class="stat-card"><div class="stat-val">${suppliers.length}</div><div class="stat-label">Fornecedores</div></div>
+      <div class="stat-card"><div class="stat-val">${priority}</div><div class="stat-label">Prioridade</div></div>
+      <div class="stat-card"><div class="stat-val">${avgScore}</div><div class="stat-label">Score Medio</div></div>
+      <div class="stat-card"><div class="stat-val">${devices}</div><div class="stat-label">Dispositivos</div></div>
+    `;
+
+    // Top products
+    const topEl = document.getElementById('summary-top-products');
+    const top5 = [...products].sort((a,b) => calcScore(b) - calcScore(a)).slice(0,5);
+    topEl.innerHTML = top5.map(p => {
+      const score = calcScore(p);
+      return `<div class="mini-card" data-id="${p.id}">
+        <span class="mini-name">${p.productName}</span>
+        <span class="mini-score">${score.toFixed(1)}</span>
+      </div>`;
+    }).join('');
+    topEl.querySelectorAll('.mini-card').forEach(c => {
+      c.addEventListener('click', () => {
+        const p = products.find(x => x.id === c.dataset.id);
+        if (p) navigate('product-detail', { product: p });
+      });
+    });
+
+    // By status
+    const statusEl = document.getElementById('summary-by-status');
+    const statusMap = {};
+    products.forEach(p => { statusMap[p.status || 'Unknown'] = (statusMap[p.status || 'Unknown'] || 0) + 1; });
+    statusEl.innerHTML = Object.entries(statusMap).sort((a,b)=>b[1]-a[1]).map(([s, n]) => `
+      <div class="status-bar-wrap">
+        <div class="status-bar-label"><span>${s}</span><span>${n}</span></div>
+        <div class="status-bar-track"><div class="status-bar-fill" style="width:${(n/total*100).toFixed(0)}%"></div></div>
+      </div>`).join('');
+
+    // By category
+    const catEl = document.getElementById('summary-by-category');
+    const catMap = {};
+    products.forEach(p => { catMap[p.category || 'Outros'] = (catMap[p.category || 'Outros'] || 0) + 1; });
+    catEl.innerHTML = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).map(([c,n]) => `
+      <div class="status-bar-wrap">
+        <div class="status-bar-label"><span>${c}</span><span>${n}</span></div>
+        <div class="status-bar-track"><div class="status-bar-fill" style="width:${(n/total*100).toFixed(0)}%"></div></div>
+      </div>`).join('');
+
+    // Priority list
+    const prioEl = document.getElementById('summary-priority-list');
+    const prio = products.filter(p => p.status === 'Priority' || p.urgency === 'high');
+    prioEl.innerHTML = prio.length ? prio.map(p => {
+      const sup = suppliers.find(s => s.id === p.supplierId);
+      return `<div class="mini-card" data-id="${p.id}">
+        <span class="mini-name">${p.productName}${sup ? ' — ' + sup.supplierName : ''}</span>
+        <span class="mini-score">${calcScore(p).toFixed(1)}</span>
+      </div>`;
+    }).join('') : '<p style="color:var(--text-mute);font-size:13px">Nenhum produto prioritario ainda.</p>';
+    prioEl.querySelectorAll('.mini-card').forEach(c => {
+      c.addEventListener('click', () => {
+        const p = products.find(x => x.id === c.dataset.id);
+        if (p) navigate('product-detail', { product: p });
+      });
+    });
+
+    // Export
+    document.getElementById('btn-export-json').addEventListener('click', exportJSON);
+    document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
+  }
+
+  function exportJSON() {
+    const blob = new Blob([JSON.stringify({ products, suppliers }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `canton-fair-${Date.now()}.json`;
+    a.click();
+  }
+
+  function exportCSV() {
+    const headers = ['Nome','Fornecedor','Categoria','Status','Urgencia','Score','MOQ','Preco','Lead Time','Quimica','Notas'];
+    const rows = products.map(p => {
+      const sup = suppliers.find(s => s.id === p.supplierId);
+      return [
+        p.productName, sup?.supplierName, p.category, p.status, p.urgency,
+        calcScore(p).toFixed(1), p.moq, p.unitPrice, p.leadTime, p.chemistry, p.notes
+      ].map(v => `"${(v||'').toString().replace(/"/g,'""')}"`);
+    });
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob(['\uFEFF'+csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `canton-fair-${Date.now()}.csv`;
+    a.click();
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  SUPPLIERS
+  // ═══════════════════════════════════════════════════════════
+  function renderSuppliers() {
+    const list  = document.getElementById('suppliers-list');
+    const empty = document.getElementById('suppliers-empty');
+    if (!list) return;
+
+    if (!suppliers.length) {
+      empty.classList.remove('hidden');
+      list.innerHTML = '';
+      return;
+    }
+    empty.classList.add('hidden');
+
+    list.innerHTML = suppliers.map(s => {
+      const prodCount = products.filter(p => p.supplierId === s.id).length;
+      return `<div class="supplier-card" data-id="${s.id}">
+        <div class="supplier-name">${s.supplierName}</div>
+        <div class="supplier-meta">
+          ${s.contactName ? `<span>${s.contactName}</span>` : ''}
+          ${s.booth ? `<span>${s.booth}</span>` : ''}
+          ${s.city ? `<span>${s.city}</span>` : ''}
+          <span>${prodCount} produto${prodCount !== 1 ? 's' : ''}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    list.querySelectorAll('.supplier-card').forEach(c => {
+      c.addEventListener('click', () => {
+        const s = suppliers.find(x => x.id === c.dataset.id);
+        if (s) navigate('edit-supplier', { supplier: s });
+      });
+    });
+  }
+
+  function initSupplierForm(supplier) {
+    if (supplier) {
+      const form = document.getElementById('supplier-form');
+      Object.entries(supplier).forEach(([k, v]) => {
+        const el = form.elements[k];
+        if (el) el.value = v;
+      });
+    }
+
+    document.getElementById('btn-cancel-supplier').addEventListener('click', () => navigate('suppliers'));
+
+    document.getElementById('supplier-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const form = e.target;
+      const data = {};
+      new FormData(form).forEach((v, k) => { data[k] = v; });
+      data.id        = (supplier && supplier.id) || genId();
+      data.deviceId  = DEVICE_ID;
+      data.deviceName = DEVICE_NAME;
+      data.updatedAt = Date.now();
+
+      if (supplier) {
+        const idx = suppliers.findIndex(s => s.id === supplier.id);
+        if (idx >= 0) suppliers[idx] = data;
+      } else {
+        suppliers.push(data);
+      }
+
+      saveLocal();
+      scheduleSync();
+      showToast('Fornecedor salvo');
+      navigate('suppliers');
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  TOAST
+  // ═══════════════════════════════════════════════════════════
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.remove('hidden');
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      t.classList.remove('show');
+      setTimeout(() => t.classList.add('hidden'), 200);
+    }, 2200);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  SETUP SCREEN
+  // ═══════════════════════════════════════════════════════════
+  function initSetupScreen() {
+    const screen = document.getElementById('setup-screen');
+    if (!screen) return;
+
+    if (SCRIPT_URL) {
+      screen.style.display = 'none';
+      return;
+    }
+
+    document.getElementById('btn-setup-save').addEventListener('click', () => {
+      const url  = document.getElementById('setup-url-input').value.trim();
+      const name = document.getElementById('setup-name-input').value.trim();
+      if (!url) { alert('Insira a URL do Apps Script.'); return; }
+      SCRIPT_URL  = url;
+      DEVICE_NAME = name;
+      LS.set('cf_script_url', url);
+      LS.set('cf_device_name', name);
+      screen.style.display = 'none';
+      syncWithServer(true);
+    });
+
+    document.getElementById('btn-setup-skip').addEventListener('click', () => {
+      screen.style.display = 'none';
+      setSyncBar('error', 'Offline — configure o Apps Script nas opcoes');
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  SETTINGS PANEL
+  // ═══════════════════════════════════════════════════════════
+  function openSettings() {
+    const panel = document.getElementById('settings-panel');
+    panel.classList.add('open');
+    document.getElementById('settings-device-id').textContent = DEVICE_ID;
+    document.getElementById('settings-name-input').value = DEVICE_NAME;
+    document.getElementById('settings-url-input').value = SCRIPT_URL;
+  }
+
+  function initSettings() {
+    document.getElementById('btn-settings-save').addEventListener('click', () => {
+      DEVICE_NAME = document.getElementById('settings-name-input').value.trim();
+      SCRIPT_URL  = document.getElementById('settings-url-input').value.trim();
+      LS.set('cf_device_name', DEVICE_NAME);
+      LS.set('cf_script_url', SCRIPT_URL);
+      document.getElementById('settings-panel').classList.remove('open');
+      showToast('Configuracoes salvas');
+      if (SCRIPT_URL) syncWithServer(true);
+    });
+
+    document.getElementById('btn-settings-close').addEventListener('click', () => {
+      document.getElementById('settings-panel').classList.remove('open');
+    });
+
+    document.getElementById('settings-panel').addEventListener('click', e => {
+      if (e.target === document.getElementById('settings-panel')) {
+        document.getElementById('settings-panel').classList.remove('open');
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  BOOT
+  // ═══════════════════════════════════════════════════════════
+  document.addEventListener('DOMContentLoaded', () => {
+    initSetupScreen();
+    initSettings();
+
+    // Nav
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      btn.addEventListener('click', () => navigate(btn.dataset.view));
+    });
+
+    // FAB
+    document.getElementById('fab-add').addEventListener('click', () => {
+      if (currentView === 'suppliers') navigate('add-supplier');
+      else navigate('add-product');
+    });
+
+    // Back button header
+    document.getElementById('btn-back').addEventListener('click', () => {
+      if (['add-product','edit-product','product-detail'].includes(currentView)) navigate('home');
+      else if (['add-supplier','edit-supplier'].includes(currentView)) navigate('suppliers');
+      else navigate('home');
+    });
+
+    // Header action (settings by default)
+    document.getElementById('btn-header-action').addEventListener('click', openSettings);
+
+    // Manual sync
+    document.getElementById('btn-manual-sync').addEventListener('click', () => syncWithServer(true));
+
+    // Initial render
+    navigate('home');
+
+    // Initial sync if URL exists
+    if (SCRIPT_URL) {
+      setSyncBar('ok', 'Pronto — sincronizando...');
+      syncWithServer(true);
+    }
+  });
+  </script>
 </body>
 </html>
