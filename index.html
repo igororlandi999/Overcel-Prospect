@@ -1634,19 +1634,23 @@
   }
 
   async function syncWithServer(force = false) {
-    if (!force && !pendingSync) return;
+    // Pull sempre roda (busca mudanças de outros dispositivos)
+    // Push só roda quando há mudanças locais pendentes
+    const shouldPush = force || pendingSync;
     setSyncBar('syncing', 'Sincronizando...');
 
     try {
-      // ── 1. Fotos base64 residuais → Storage ──────────────────
-      for (const p of products) {
-        if (p.photo && typeof p.photo === 'string' && p.photo.startsWith('data:')) {
-          const url = await uploadPhotoToStorage(p.photo, p.id);
-          if (url) { p.photo = url; LS.set('cf_products', products); }
+      // ── 1. Fotos base64 residuais → Storage (só se há push pendente) ─
+      if (shouldPush) {
+        for (const p of products) {
+          if (p.photo && typeof p.photo === 'string' && p.photo.startsWith('data:')) {
+            const url = await uploadPhotoToStorage(p.photo, p.id);
+            if (url) { p.photo = url; LS.set('cf_products', products); }
+          }
         }
       }
 
-      // ── 2. Busca servidor PRIMEIRO ────────────────────────────
+      // ── 2. Busca servidor PRIMEIRO (sempre) ───────────────────
       const [pRes, sRes] = await Promise.all([
         fetch(`${SB_URL}/rest/v1/cf_products?select=*`, { headers: SB_HDR }),
         fetch(`${SB_URL}/rest/v1/cf_suppliers?select=*`, { headers: SB_HDR })
@@ -1657,11 +1661,9 @@
       const serverProducts  = await pRes.json();
       const serverSuppliers = await sRes.json();
 
-      // ── 3. Merge: o mais recente vence em cada campo ──────────
+      // ── 3. Merge: o mais recente vence ────────────────────────
       function mergeRecords(localArr, serverRows) {
         const result = {};
-
-        // Indexa servidor
         serverRows.forEach(row => {
           const d = row.data || {};
           result[row.id] = {
@@ -1673,60 +1675,51 @@
             deleted:    !!row.deleted
           };
         });
-
-        // Local sobrescreve apenas se for MAIS NOVO que o servidor
         localArr.forEach(local => {
           const srv = result[local.id];
           const localTs  = local.updatedAt  || 0;
-          const serverTs = srv?.updatedAt || 0;
+          const serverTs = srv?.updatedAt   || 0;
           if (!srv || localTs > serverTs) {
             result[local.id] = local;
           } else {
-            // Servidor é mais novo ou igual — preserva foto local se servidor não tiver
+            // Servidor mais novo — preserva foto local se servidor não tiver
             if (!result[local.id].photo && local.photo && typeof local.photo === 'string') {
               result[local.id] = { ...result[local.id], photo: local.photo };
             }
           }
         });
-
         return Object.values(result);
       }
 
       const finalProducts  = mergeRecords(products,  serverProducts);
       const finalSuppliers = mergeRecords(suppliers, serverSuppliers);
 
-      // ── 4. Upsert apenas os registros onde local GANHOU ───────
-      // (local mais novo que servidor, ou novos que servidor não tem)
-      const serverPMap = {};
-      serverProducts.forEach(r => { serverPMap[r.id] = Number(r.updated_at) || 0; });
-      const toUpsertProducts = products.filter(p => {
-        const serverTs = serverPMap[p.id] || 0;
-        return (p.updatedAt || 0) > serverTs;
-      });
+      // ── 4. Upsert só os registros locais mais novos que o servidor ─
+      if (shouldPush) {
+        const serverPMap = {};
+        serverProducts.forEach(r => { serverPMap[r.id] = Number(r.updated_at) || 0; });
+        const toUpsertProducts = products.filter(p => (p.updatedAt || 0) > (serverPMap[p.id] || 0));
 
-      const serverSMap = {};
-      serverSuppliers.forEach(r => { serverSMap[r.id] = Number(r.updated_at) || 0; });
-      const toUpsertSuppliers = suppliers.filter(s => {
-        const serverTs = serverSMap[s.id] || 0;
-        return (s.updatedAt || 0) > serverTs;
-      });
+        const serverSMap = {};
+        serverSuppliers.forEach(r => { serverSMap[r.id] = Number(r.updated_at) || 0; });
+        const toUpsertSuppliers = suppliers.filter(s => (s.updatedAt || 0) > (serverSMap[s.id] || 0));
 
-      if (toUpsertProducts.length > 0) {
-        const rows = toUpsertProducts.map(p => ({
-          id:          p.id,
-          device_id:   p.deviceId   || DEVICE_ID,
-          device_name: p.deviceName || DEVICE_NAME,
-          updated_at:  p.updatedAt  || Date.now(),
-          deleted:     !!p.deleted,
-          data:        p
-        }));
-        const r = await fetch(`${SB_URL}/rest/v1/cf_products?on_conflict=id`, {
-          method: 'POST',
-          headers: { ...SB_HDR, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-          body: JSON.stringify(rows)
-        });
-        if (!r.ok) throw new Error('Upsert products: ' + await r.text());
-      }
+        if (toUpsertProducts.length > 0) {
+          const rows = toUpsertProducts.map(p => ({
+            id:          p.id,
+            device_id:   p.deviceId   || DEVICE_ID,
+            device_name: p.deviceName || DEVICE_NAME,
+            updated_at:  p.updatedAt  || Date.now(),
+            deleted:     !!p.deleted,
+            data:        p
+          }));
+          const r = await fetch(`${SB_URL}/rest/v1/cf_products?on_conflict=id`, {
+            method: 'POST',
+            headers: { ...SB_HDR, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify(rows)
+          });
+          if (!r.ok) throw new Error('Upsert products: ' + await r.text());
+        }
 
       if (toUpsertSuppliers.length > 0) {
         const rows = toUpsertSuppliers.map(s => ({
@@ -1744,6 +1737,7 @@
         });
         if (!r.ok) throw new Error('Upsert suppliers: ' + await r.text());
       }
+      } // fim shouldPush
 
       // ── 5. Salva estado final ─────────────────────────────────
       products  = finalProducts;
@@ -1768,8 +1762,8 @@
     syncTimer = setTimeout(() => syncWithServer(), 2000);
   }
 
-  // Auto sync every 30s
-  setInterval(() => syncWithServer(), 30000);
+  // Auto sync every 15s
+  setInterval(() => syncWithServer(), 15000);
 
   // ═══════════════════════════════════════════════════════════
   //  SCORE
