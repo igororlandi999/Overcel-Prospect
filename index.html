@@ -1560,7 +1560,7 @@
       // ── 1. Upload pending base64 photos to Storage ──────────
       const localPhotoMap = {};
       for (const p of products) {
-        if (p.photo && p.photo.startsWith('data:')) {
+        if (p.photo && typeof p.photo === 'string' && p.photo.startsWith('data:')) {
           const url = await uploadPhotoToStorage(p.photo, p.id);
           if (url) { p.photo = url; localPhotoMap[p.id] = url; }
         }
@@ -1622,8 +1622,7 @@
                      deleted: row.deleted };
         const local = mergedProducts[row.id];
         if (!local || row.updated_at >= (local.updatedAt || 0)) {
-          // Keep local base64 photo if server doesn't have one yet
-          if (!sp.photo && local?.photo) sp.photo = local.photo;
+          if (!sp.photo && local?.photo && typeof local.photo === 'string') sp.photo = local.photo;
           mergedProducts[row.id] = sp;
         }
       });
