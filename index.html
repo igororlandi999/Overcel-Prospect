@@ -1579,9 +1579,11 @@
         photos: photosToUpload
       };
 
-      const res  = await fetch(SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify(payload)
+      // Apps Script blocks CORS preflight on POST from browsers.
+      // Solution: encode payload as base64 and send via GET — no preflight, no CORS issue.
+      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+      const res = await fetch(SCRIPT_URL + '?d=' + encodeURIComponent(encoded), {
+        method: 'GET'
       });
 
       const json = await res.json();
