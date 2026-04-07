@@ -1557,17 +1557,21 @@
     setSyncBar('syncing', 'Sincronizando...');
 
     try {
-      // ── 1. Upload fotos base64 pendentes ─────────────────────
-      const localPhotoMap = {};
+      // ── 1. Foto já foi upada no submit — aqui só garante que
+      //       base64 residuais (falha anterior) sejam reenviados ──
       for (const p of products) {
         if (p.photo && typeof p.photo === 'string' && p.photo.startsWith('data:')) {
           const url = await uploadPhotoToStorage(p.photo, p.id);
-          if (url) { p.photo = url; }
+          if (url) { p.photo = url; LS.set('cf_products', products); }
         }
+      }
+      // Mapa de fotos já upadas (URL do Storage)
+      const localPhotoMap = {};
+      products.forEach(p => {
         if (p.photo && typeof p.photo === 'string' && !p.photo.startsWith('data:')) {
           localPhotoMap[p.id] = p.photo;
         }
-      }
+      });
 
       // ── 2. Upsert produtos locais ─────────────────────────────
       if (products.length > 0) {
@@ -1990,45 +1994,62 @@
     document.getElementById('btn-cancel-form').addEventListener('click', () => navigate('home'));
 
     // Submit
-    document.getElementById('product-form').addEventListener('submit', e => {
+    document.getElementById('product-form').addEventListener('submit', async e => {
       e.preventDefault();
       const form = e.target;
-      const data = {};
 
-      // Collect all named fields
-      const fd = new FormData(form);
-      for (const [k, v] of fd.entries()) {
-        if (['certifications','shippingType'].includes(k)) {
-          data[k] = data[k] ? [...data[k], v] : [v];
-        } else {
-          data[k] = v;
+      // Disable submit button to prevent double-submit
+      const submitBtn = form.querySelector('[type="submit"]');
+      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Salvando...'; }
+
+      try {
+        const data = {};
+
+        // Collect all named fields
+        const fd = new FormData(form);
+        for (const [k, v] of fd.entries()) {
+          if (['certifications','shippingType'].includes(k)) {
+            data[k] = data[k] ? [...data[k], v] : [v];
+          } else {
+            data[k] = v;
+          }
         }
+
+        // Radio (urgency)
+        const urgency = form.querySelector('[name="urgency"]:checked');
+        if (urgency) data.urgency = urgency.value;
+
+        // Photo — wait for FileReader if still loading
+        const b64 = photoPreview.dataset.base64;
+        if (b64 && typeof b64 === 'string' && b64.startsWith('data:')) {
+          // Try upload immediately to get a URL before saving
+          const url = await uploadPhotoToStorage(b64, data.id || genId());
+          data.photo = url || b64; // fallback to base64 if upload fails
+        } else if (b64) {
+          data.photo = b64;
+        }
+
+        // Meta
+        data.id         = (product && product.id) || genId();
+        data.deviceId   = DEVICE_ID;
+        data.deviceName = DEVICE_NAME;
+        data.updatedAt  = Date.now();
+
+        if (product) {
+          const idx = products.findIndex(p => p.id === product.id);
+          if (idx >= 0) products[idx] = data;
+        } else {
+          products.push(data);
+        }
+
+        saveLocal();
+        scheduleSync();
+        showToast('Produto salvo');
+        navigate('home');
+      } catch (err) {
+        showToast('Erro ao salvar: ' + err.message);
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Salvar Produto'; }
       }
-
-      // Radio (urgency)
-      const urgency = form.querySelector('[name="urgency"]:checked');
-      if (urgency) data.urgency = urgency.value;
-
-      // Photo
-      if (photoPreview.dataset.base64) data.photo = photoPreview.dataset.base64;
-
-      // Meta
-      data.id        = (product && product.id) || genId();
-      data.deviceId  = DEVICE_ID;
-      data.deviceName = DEVICE_NAME;
-      data.updatedAt = Date.now();
-
-      if (product) {
-        const idx = products.findIndex(p => p.id === product.id);
-        if (idx >= 0) products[idx] = data;
-      } else {
-        products.push(data);
-      }
-
-      saveLocal();
-      scheduleSync();
-      showToast('Produto salvo');
-      navigate('home');
     });
   }
 
