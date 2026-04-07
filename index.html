@@ -935,10 +935,45 @@
       border-radius: var(--radius);
       padding: 14px;
       margin-bottom: 10px;
+    }
+
+    .supplier-card-main {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
       cursor: pointer;
     }
 
-    .supplier-card:active { opacity: .8; }
+    .supplier-card-main > div {
+      flex: 1;
+    }
+
+    .btn-supplier-delete {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius);
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-mute);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color .15s, border-color .15s, background .15s;
+    }
+
+    .btn-supplier-delete:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+      background: rgba(255,68,68,.08);
+    }
+
+    .btn-supplier-delete:active {
+      background: rgba(255,68,68,.18);
+    }
 
     .supplier-name {
       font-family: var(--font-head);
@@ -1925,9 +1960,9 @@
   //  PRODUCT FORM
   // ═══════════════════════════════════════════════════════════
   function initProductForm(product) {
-    // Populate supplier dropdown
+    // Populate supplier dropdown — só os ativos
     const sel = document.getElementById('supplier-select');
-    suppliers.forEach(s => {
+    suppliers.filter(s => !s.deleted).forEach(s => {
       const opt = document.createElement('option');
       opt.value = s.id;
       opt.textContent = s.supplierName;
@@ -2363,30 +2398,60 @@
     const empty = document.getElementById('suppliers-empty');
     if (!list) return;
 
-    if (!suppliers.length) {
+    const active = suppliers.filter(s => !s.deleted);
+
+    if (!active.length) {
       empty.classList.remove('hidden');
       list.innerHTML = '';
       return;
     }
     empty.classList.add('hidden');
 
-    list.innerHTML = suppliers.map(s => {
-      const prodCount = products.filter(p => p.supplierId === s.id).length;
+    list.innerHTML = active.map(s => {
+      const prodCount = products.filter(p => p.supplierId === s.id && !p.deleted).length;
       return `<div class="supplier-card" data-id="${s.id}">
-        <div class="supplier-name">${s.supplierName}</div>
-        <div class="supplier-meta">
-          ${s.contactName ? `<span>${s.contactName}</span>` : ''}
-          ${s.booth ? `<span>${s.booth}</span>` : ''}
-          ${s.city ? `<span>${s.city}</span>` : ''}
-          <span>${prodCount} produto${prodCount !== 1 ? 's' : ''}</span>
+        <div class="supplier-card-main">
+          <div>
+            <div class="supplier-name">${s.supplierName}</div>
+            <div class="supplier-meta">
+              ${s.contactName ? `<span>${s.contactName}</span>` : ''}
+              ${s.booth ? `<span>${s.booth}</span>` : ''}
+              ${s.city ? `<span>${s.city}</span>` : ''}
+              <span>${prodCount} produto${prodCount !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+          <button class="btn-supplier-delete" data-id="${s.id}" aria-label="Excluir fornecedor">&#10005;</button>
         </div>
       </div>`;
     }).join('');
 
-    list.querySelectorAll('.supplier-card').forEach(c => {
-      c.addEventListener('click', () => {
-        const s = suppliers.find(x => x.id === c.dataset.id);
+    list.querySelectorAll('.supplier-card-main > div').forEach(div => {
+      div.addEventListener('click', () => {
+        const card = div.closest('.supplier-card');
+        const s = suppliers.find(x => x.id === card.dataset.id);
         if (s) navigate('edit-supplier', { supplier: s });
+      });
+    });
+
+    list.querySelectorAll('.btn-supplier-delete').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const s = suppliers.find(x => x.id === btn.dataset.id);
+        if (!s) return;
+        const prodCount = products.filter(p => p.supplierId === s.id && !p.deleted).length;
+        const msg = prodCount > 0
+          ? `Excluir "${s.supplierName}"? Ele tem ${prodCount} produto(s) associado(s).`
+          : `Excluir "${s.supplierName}"?`;
+        if (!confirm(msg)) return;
+
+        const idx = suppliers.findIndex(x => x.id === s.id);
+        if (idx >= 0) {
+          suppliers[idx] = { ...suppliers[idx], deleted: true, updatedAt: Date.now(), deviceId: DEVICE_ID, deviceName: DEVICE_NAME };
+        }
+        saveLocal();
+        scheduleSync();
+        showToast('Fornecedor excluido');
+        renderSuppliers();
       });
     });
   }
