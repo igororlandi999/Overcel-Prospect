@@ -1601,6 +1601,7 @@
   let editingSupplier = null;
   let syncTimer      = null;
   let pendingSync    = false;
+  let pendingEmailIds = new Set(); // IDs de produtos novos aguardando email após sync
 
   // ═══════════════════════════════════════════════════════════
   //  PERSISTENCE
@@ -1765,6 +1766,15 @@
 
       const ts = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
       setSyncBar('ok', `Sincronizado as ${ts} — ${DEVICE_NAME || DEVICE_ID.slice(0,6)}`);
+
+      // Disparar emails para produtos novos — agora a foto já está no Storage
+      if (pendingEmailIds.size > 0) {
+        for (const id of pendingEmailIds) {
+          const p = products.find(x => x.id === id);
+          if (p && !p.deleted) sendProductEmail(p).catch(() => {});
+        }
+        pendingEmailIds.clear();
+      }
 
       if (currentView === 'home')      renderHome();
       if (currentView === 'suppliers') renderSuppliers();
@@ -2163,14 +2173,11 @@
         }
 
         saveLocal();
-        scheduleSync(); // sync faz upload da foto em background
+        // Se é produto novo, marcar ID para disparar email após sync (quando foto já está no Storage)
+        if (!product) pendingEmailIds.add(data.id);
+        scheduleSync();
         showToast('Produto salvo');
-        navigate('home'); // navega IMEDIATAMENTE — não espera o upload
-
-        // Envia email só para produtos NOVOS (não edições)
-        if (!product) {
-          sendProductEmail(data).catch(() => {}); // fire-and-forget, não bloqueia
-        }
+        navigate('home');
       } catch (err) {
         showToast('Erro ao salvar: ' + err.message);
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Salvar Produto'; }
