@@ -1557,130 +1557,116 @@
     setSyncBar('syncing', 'Sincronizando...');
 
     try {
-      // ── 1. Foto já foi upada no submit — aqui só garante que
-      //       base64 residuais (falha anterior) sejam reenviados ──
+      // ── 1. Fotos base64 residuais → Storage ──────────────────
       for (const p of products) {
         if (p.photo && typeof p.photo === 'string' && p.photo.startsWith('data:')) {
           const url = await uploadPhotoToStorage(p.photo, p.id);
           if (url) { p.photo = url; LS.set('cf_products', products); }
         }
       }
-      // Mapa de fotos já upadas (URL do Storage)
-      const localPhotoMap = {};
-      products.forEach(p => {
-        if (p.photo && typeof p.photo === 'string' && !p.photo.startsWith('data:')) {
-          localPhotoMap[p.id] = p.photo;
-        }
+
+      // ── 2. Busca servidor PRIMEIRO ────────────────────────────
+      const [pRes, sRes] = await Promise.all([
+        fetch(`${SB_URL}/rest/v1/cf_products?select=*`, { headers: SB_HDR }),
+        fetch(`${SB_URL}/rest/v1/cf_suppliers?select=*`, { headers: SB_HDR })
+      ]);
+      if (!pRes.ok) throw new Error('Fetch failed: ' + pRes.status);
+      if (!sRes.ok) throw new Error('Fetch failed: ' + sRes.status);
+
+      const serverProducts  = await pRes.json();
+      const serverSuppliers = await sRes.json();
+
+      // ── 3. Merge: o mais recente vence em cada campo ──────────
+      function mergeRecords(localArr, serverRows) {
+        const result = {};
+
+        // Indexa servidor
+        serverRows.forEach(row => {
+          const d = row.data || {};
+          result[row.id] = {
+            ...d,
+            id:         row.id,
+            deviceId:   row.device_id   || d.deviceId,
+            deviceName: row.device_name || d.deviceName,
+            updatedAt:  Number(row.updated_at) || 0,
+            deleted:    !!row.deleted
+          };
+        });
+
+        // Local sobrescreve apenas se for MAIS NOVO que o servidor
+        localArr.forEach(local => {
+          const srv = result[local.id];
+          const localTs  = local.updatedAt  || 0;
+          const serverTs = srv?.updatedAt || 0;
+          if (!srv || localTs > serverTs) {
+            result[local.id] = local;
+          } else {
+            // Servidor é mais novo ou igual — preserva foto local se servidor não tiver
+            if (!result[local.id].photo && local.photo && typeof local.photo === 'string') {
+              result[local.id] = { ...result[local.id], photo: local.photo };
+            }
+          }
+        });
+
+        return Object.values(result);
+      }
+
+      const finalProducts  = mergeRecords(products,  serverProducts);
+      const finalSuppliers = mergeRecords(suppliers, serverSuppliers);
+
+      // ── 4. Upsert apenas os registros onde local GANHOU ───────
+      // (local mais novo que servidor, ou novos que servidor não tem)
+      const serverPMap = {};
+      serverProducts.forEach(r => { serverPMap[r.id] = Number(r.updated_at) || 0; });
+      const toUpsertProducts = products.filter(p => {
+        const serverTs = serverPMap[p.id] || 0;
+        return (p.updatedAt || 0) > serverTs;
       });
 
-      // ── 2. Upsert produtos locais ─────────────────────────────
-      if (products.length > 0) {
-        const rows = products.map(p => ({
+      const serverSMap = {};
+      serverSuppliers.forEach(r => { serverSMap[r.id] = Number(r.updated_at) || 0; });
+      const toUpsertSuppliers = suppliers.filter(s => {
+        const serverTs = serverSMap[s.id] || 0;
+        return (s.updatedAt || 0) > serverTs;
+      });
+
+      if (toUpsertProducts.length > 0) {
+        const rows = toUpsertProducts.map(p => ({
           id:          p.id,
-          device_id:   p.deviceId  || DEVICE_ID,
+          device_id:   p.deviceId   || DEVICE_ID,
           device_name: p.deviceName || DEVICE_NAME,
           updated_at:  p.updatedAt  || Date.now(),
           deleted:     !!p.deleted,
           data:        p
         }));
-        const upRes = await fetch(`${SB_URL}/rest/v1/cf_products?on_conflict=id`, {
+        const r = await fetch(`${SB_URL}/rest/v1/cf_products?on_conflict=id`, {
           method: 'POST',
           headers: { ...SB_HDR, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
           body: JSON.stringify(rows)
         });
-        if (!upRes.ok) {
-          const err = await upRes.text();
-          throw new Error('Upsert products failed: ' + err);
-        }
+        if (!r.ok) throw new Error('Upsert products: ' + await r.text());
       }
 
-      // ── 3. Upsert fornecedores locais ─────────────────────────
-      if (suppliers.length > 0) {
-        const rows = suppliers.map(s => ({
+      if (toUpsertSuppliers.length > 0) {
+        const rows = toUpsertSuppliers.map(s => ({
           id:          s.id,
-          device_id:   s.deviceId  || DEVICE_ID,
+          device_id:   s.deviceId   || DEVICE_ID,
           device_name: s.deviceName || DEVICE_NAME,
           updated_at:  s.updatedAt  || Date.now(),
           deleted:     !!s.deleted,
           data:        s
         }));
-        const upRes = await fetch(`${SB_URL}/rest/v1/cf_suppliers?on_conflict=id`, {
+        const r = await fetch(`${SB_URL}/rest/v1/cf_suppliers?on_conflict=id`, {
           method: 'POST',
           headers: { ...SB_HDR, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
           body: JSON.stringify(rows)
         });
-        if (!upRes.ok) {
-          const err = await upRes.text();
-          throw new Error('Upsert suppliers failed: ' + err);
-        }
+        if (!r.ok) throw new Error('Upsert suppliers: ' + await r.text());
       }
 
-      // ── 4. Busca tudo do servidor ─────────────────────────────
-      const [pRes, sRes] = await Promise.all([
-        fetch(`${SB_URL}/rest/v1/cf_products?select=*`, { headers: SB_HDR }),
-        fetch(`${SB_URL}/rest/v1/cf_suppliers?select=*`, { headers: SB_HDR })
-      ]);
-
-      if (!pRes.ok) throw new Error('Fetch products failed: ' + pRes.status);
-      if (!sRes.ok) throw new Error('Fetch suppliers failed: ' + sRes.status);
-
-      const serverProducts  = await pRes.json();
-      const serverSuppliers = await sRes.json();
-
-      // ── 5. Merge por updatedAt — o mais recente vence ─────────
-      // Constrói mapa local
-      const localPMap = {};
-      products.forEach(p => { localPMap[p.id] = p; });
-
-      const finalProducts = {};
-      // Começa com os do servidor
-      serverProducts.forEach(row => {
-        const d = row.data || {};
-        const sp = {
-          ...d,
-          id:         row.id,
-          deviceId:   row.device_id   || d.deviceId,
-          deviceName: row.device_name || d.deviceName,
-          updatedAt:  Number(row.updated_at) || d.updatedAt || 0,
-          deleted:    !!row.deleted
-        };
-        // Preserva foto local se servidor não tiver
-        if (!sp.photo && localPhotoMap[row.id]) sp.photo = localPhotoMap[row.id];
-        finalProducts[row.id] = sp;
-      });
-      // Local sobrescreve se for mais novo
-      Object.values(localPMap).forEach(p => {
-        const srv = finalProducts[p.id];
-        if (!srv || (p.updatedAt || 0) > (srv.updatedAt || 0)) {
-          finalProducts[p.id] = p;
-        }
-      });
-
-      const localSMap = {};
-      suppliers.forEach(s => { localSMap[s.id] = s; });
-
-      const finalSuppliers = {};
-      serverSuppliers.forEach(row => {
-        const d = row.data || {};
-        const ss = {
-          ...d,
-          id:         row.id,
-          deviceId:   row.device_id   || d.deviceId,
-          deviceName: row.device_name || d.deviceName,
-          updatedAt:  Number(row.updated_at) || d.updatedAt || 0,
-          deleted:    !!row.deleted
-        };
-        finalSuppliers[row.id] = ss;
-      });
-      Object.values(localSMap).forEach(s => {
-        const srv = finalSuppliers[s.id];
-        if (!srv || (s.updatedAt || 0) > (srv.updatedAt || 0)) {
-          finalSuppliers[s.id] = s;
-        }
-      });
-
-      products  = Object.values(finalProducts);
-      suppliers = Object.values(finalSuppliers);
+      // ── 5. Salva estado final ─────────────────────────────────
+      products  = finalProducts;
+      suppliers = finalSuppliers;
       LS.set('cf_products',  products);
       LS.set('cf_suppliers', suppliers);
       pendingSync = false;
@@ -2019,21 +2005,19 @@
         const urgency = form.querySelector('[name="urgency"]:checked');
         if (urgency) data.urgency = urgency.value;
 
-        // Photo — wait for FileReader if still loading
-        const b64 = photoPreview.dataset.base64;
-        if (b64 && typeof b64 === 'string' && b64.startsWith('data:')) {
-          // Try upload immediately to get a URL before saving
-          const url = await uploadPhotoToStorage(b64, data.id || genId());
-          data.photo = url || b64; // fallback to base64 if upload fails
-        } else if (b64) {
-          data.photo = b64;
-        }
-
-        // Meta
+        // Meta — definir ID ANTES de qualquer coisa para o upload usar o ID correto
         data.id         = (product && product.id) || genId();
         data.deviceId   = DEVICE_ID;
         data.deviceName = DEVICE_NAME;
         data.updatedAt  = Date.now();
+
+        // Photo — salva base64 localmente já, upload acontece no sync background
+        const b64 = photoPreview.dataset.base64;
+        if (b64 && typeof b64 === 'string') {
+          data.photo = b64; // salva base64 local agora
+        } else if (product && product.photo) {
+          data.photo = product.photo; // mantém foto existente
+        }
 
         if (product) {
           const idx = products.findIndex(p => p.id === product.id);
@@ -2043,9 +2027,9 @@
         }
 
         saveLocal();
-        scheduleSync();
+        scheduleSync(); // sync faz upload da foto em background
         showToast('Produto salvo');
-        navigate('home');
+        navigate('home'); // navega IMEDIATAMENTE — não espera o upload
       } catch (err) {
         showToast('Erro ao salvar: ' + err.message);
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Salvar Produto'; }
