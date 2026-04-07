@@ -1545,6 +1545,7 @@
       // photos (Drive URLs starting with https://) are kept inside data as-is.
       const photosToUpload = {};
       const productsPayload = products.map(p => {
+        const isDeleted = !!p.deleted;
         if (p.photo && p.photo.startsWith('data:')) {
           photosToUpload[p.id] = p.photo;
           const { photo, ...rest } = p;
@@ -1552,16 +1553,16 @@
             id: p.id,
             deviceId: p.deviceId || DEVICE_ID,
             updatedAt: p.updatedAt || Date.now(),
-            deleted: p.deleted || false,
-            data: rest
+            deleted: isDeleted,
+            data: { ...rest, deleted: isDeleted }
           };
         }
         return {
           id: p.id,
           deviceId: p.deviceId || DEVICE_ID,
           updatedAt: p.updatedAt || Date.now(),
-          deleted: p.deleted || false,
-          data: p
+          deleted: isDeleted,
+          data: { ...p, deleted: isDeleted }
         };
       });
 
@@ -1594,9 +1595,12 @@
         products.forEach(p => { if (p.photo) localPhotoMap[p.id] = p.photo; });
 
         products = incoming.map(p => {
-          if (p.photo) return p;                          // server has Drive URL — use it
-          if (localPhotoMap[p.id]) return { ...p, photo: localPhotoMap[p.id] }; // keep local base64
-          return p;
+          // deleted flag can come from envelope field OR from inside data
+          const isDeleted = !!(p.deleted || p.data?.deleted);
+          const merged = { ...p, deleted: isDeleted };
+          if (merged.photo) return merged;                          // server has Drive URL
+          if (localPhotoMap[p.id]) return { ...merged, photo: localPhotoMap[p.id] }; // keep local
+          return merged;
         });
 
         suppliers = json.suppliers || suppliers;
@@ -2064,7 +2068,15 @@
       if (confirm('Excluir este produto?')) {
         const idx = products.findIndex(x => x.id === p.id);
         if (idx >= 0) {
-          products[idx] = { ...products[idx], deleted: true, updatedAt: Date.now(), deviceId: DEVICE_ID };
+          // deleted flag lives BOTH in the envelope AND inside data
+          // so it survives any sheet column misread
+          products[idx] = {
+            ...products[idx],
+            deleted: true,
+            updatedAt: Date.now(),
+            deviceId: DEVICE_ID
+          };
+          products[idx].deleted = true; // redundant but explicit
         }
         saveLocal();
         scheduleSync();
