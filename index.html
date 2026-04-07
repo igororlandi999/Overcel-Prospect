@@ -1540,22 +1540,42 @@
     setSyncBar('syncing', 'Sincronizando...');
 
     try {
-      const payload = {
-        deviceId:  DEVICE_ID,
-        products:  products.map(p => ({
+      // Separate base64 photos from product data — send them in a dedicated field
+      // so the server can upload to Drive and return a URL. Already-uploaded
+      // photos (Drive URLs starting with https://) are kept inside data as-is.
+      const photosToUpload = {};
+      const productsPayload = products.map(p => {
+        if (p.photo && p.photo.startsWith('data:')) {
+          photosToUpload[p.id] = p.photo;
+          const { photo, ...rest } = p;
+          return {
+            id: p.id,
+            deviceId: p.deviceId || DEVICE_ID,
+            updatedAt: p.updatedAt || Date.now(),
+            deleted: p.deleted || false,
+            data: rest
+          };
+        }
+        return {
           id: p.id,
           deviceId: p.deviceId || DEVICE_ID,
           updatedAt: p.updatedAt || Date.now(),
           deleted: p.deleted || false,
           data: p
-        })),
+        };
+      });
+
+      const payload = {
+        deviceId,
+        products:  productsPayload,
         suppliers: suppliers.map(s => ({
           id: s.id,
           deviceId: s.deviceId || DEVICE_ID,
           updatedAt: s.updatedAt || Date.now(),
           deleted: s.deleted || false,
           data: s
-        }))
+        })),
+        photos: photosToUpload
       };
 
       const res  = await fetch(SCRIPT_URL, {
@@ -1566,13 +1586,22 @@
       const json = await res.json();
 
       if (json.ok) {
-        // Guarda tudo incluindo tombstones localmente, mas expoe só os vivos
-        const allProducts  = json.products  || products;
-        const allSuppliers = json.suppliers || suppliers;
-        LS.set('cf_products',  allProducts);
-        LS.set('cf_suppliers', allSuppliers);
-        products  = allProducts;
-        suppliers = allSuppliers;
+        const incoming = json.products || [];
+
+        // For each product returned by server: if it now has a Drive URL photo,
+        // use it. If the server has no photo but we have a local base64, keep it.
+        const localPhotoMap = {};
+        products.forEach(p => { if (p.photo) localPhotoMap[p.id] = p.photo; });
+
+        products = incoming.map(p => {
+          if (p.photo) return p;                          // server has Drive URL — use it
+          if (localPhotoMap[p.id]) return { ...p, photo: localPhotoMap[p.id] }; // keep local base64
+          return p;
+        });
+
+        suppliers = json.suppliers || suppliers;
+        LS.set('cf_products',  products);
+        LS.set('cf_suppliers', suppliers);
         pendingSync = false;
 
         const ts = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
