@@ -1557,90 +1557,126 @@
     setSyncBar('syncing', 'Sincronizando...');
 
     try {
-      // ── 1. Upload pending base64 photos to Storage ──────────
+      // ── 1. Upload fotos base64 pendentes ─────────────────────
       const localPhotoMap = {};
       for (const p of products) {
         if (p.photo && typeof p.photo === 'string' && p.photo.startsWith('data:')) {
           const url = await uploadPhotoToStorage(p.photo, p.id);
-          if (url) { p.photo = url; localPhotoMap[p.id] = url; }
+          if (url) { p.photo = url; }
+        }
+        if (p.photo && typeof p.photo === 'string' && !p.photo.startsWith('data:')) {
+          localPhotoMap[p.id] = p.photo;
         }
       }
 
-      // ── 2. Upsert local products to Supabase ─────────────────
+      // ── 2. Upsert produtos locais ─────────────────────────────
       if (products.length > 0) {
         const rows = products.map(p => ({
-          id:         p.id,
-          device_id:  p.deviceId || DEVICE_ID,
+          id:          p.id,
+          device_id:   p.deviceId  || DEVICE_ID,
           device_name: p.deviceName || DEVICE_NAME,
-          updated_at: p.updatedAt || Date.now(),
-          deleted:    !!p.deleted,
-          data:       p
+          updated_at:  p.updatedAt  || Date.now(),
+          deleted:     !!p.deleted,
+          data:        p
         }));
-        await fetch(`${SB_URL}/rest/v1/cf_products?on_conflict=id`, {
+        const upRes = await fetch(`${SB_URL}/rest/v1/cf_products?on_conflict=id`, {
           method: 'POST',
-          headers: { ...SB_HDR, 'Prefer': 'resolution=merge-duplicates' },
+          headers: { ...SB_HDR, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
           body: JSON.stringify(rows)
         });
+        if (!upRes.ok) {
+          const err = await upRes.text();
+          throw new Error('Upsert products failed: ' + err);
+        }
       }
 
-      // ── 3. Upsert local suppliers ────────────────────────────
+      // ── 3. Upsert fornecedores locais ─────────────────────────
       if (suppliers.length > 0) {
         const rows = suppliers.map(s => ({
           id:          s.id,
-          device_id:   s.deviceId || DEVICE_ID,
+          device_id:   s.deviceId  || DEVICE_ID,
           device_name: s.deviceName || DEVICE_NAME,
-          updated_at:  s.updatedAt || Date.now(),
+          updated_at:  s.updatedAt  || Date.now(),
           deleted:     !!s.deleted,
           data:        s
         }));
-        await fetch(`${SB_URL}/rest/v1/cf_suppliers?on_conflict=id`, {
+        const upRes = await fetch(`${SB_URL}/rest/v1/cf_suppliers?on_conflict=id`, {
           method: 'POST',
-          headers: { ...SB_HDR, 'Prefer': 'resolution=merge-duplicates' },
+          headers: { ...SB_HDR, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
           body: JSON.stringify(rows)
         });
+        if (!upRes.ok) {
+          const err = await upRes.text();
+          throw new Error('Upsert suppliers failed: ' + err);
+        }
       }
 
-      // ── 4. Fetch all records from server ────────────────────
+      // ── 4. Busca tudo do servidor ─────────────────────────────
       const [pRes, sRes] = await Promise.all([
-        fetch(`${SB_URL}/rest/v1/cf_products?select=*&order=updated_at.desc`, { headers: SB_HDR }),
-        fetch(`${SB_URL}/rest/v1/cf_suppliers?select=*&order=updated_at.desc`, { headers: SB_HDR })
+        fetch(`${SB_URL}/rest/v1/cf_products?select=*`, { headers: SB_HDR }),
+        fetch(`${SB_URL}/rest/v1/cf_suppliers?select=*`, { headers: SB_HDR })
       ]);
 
-      if (!pRes.ok || !sRes.ok) throw new Error('Fetch failed: ' + pRes.status);
+      if (!pRes.ok) throw new Error('Fetch products failed: ' + pRes.status);
+      if (!sRes.ok) throw new Error('Fetch suppliers failed: ' + sRes.status);
 
       const serverProducts  = await pRes.json();
       const serverSuppliers = await sRes.json();
 
-      // ── 5. Merge: server wins on conflict (last updatedAt) ──
-      const mergedProducts = {};
-      // Start with local
-      products.forEach(p => { mergedProducts[p.id] = p; });
-      // Server overwrites if newer
+      // ── 5. Merge por updatedAt — o mais recente vence ─────────
+      // Constrói mapa local
+      const localPMap = {};
+      products.forEach(p => { localPMap[p.id] = p; });
+
+      const finalProducts = {};
+      // Começa com os do servidor
       serverProducts.forEach(row => {
-        const sp = { ...row.data, id: row.id, deviceId: row.device_id,
-                     deviceName: row.device_name, updatedAt: row.updated_at,
-                     deleted: row.deleted };
-        const local = mergedProducts[row.id];
-        if (!local || row.updated_at >= (local.updatedAt || 0)) {
-          if (!sp.photo && local?.photo && typeof local.photo === 'string') sp.photo = local.photo;
-          mergedProducts[row.id] = sp;
+        const d = row.data || {};
+        const sp = {
+          ...d,
+          id:         row.id,
+          deviceId:   row.device_id   || d.deviceId,
+          deviceName: row.device_name || d.deviceName,
+          updatedAt:  Number(row.updated_at) || d.updatedAt || 0,
+          deleted:    !!row.deleted
+        };
+        // Preserva foto local se servidor não tiver
+        if (!sp.photo && localPhotoMap[row.id]) sp.photo = localPhotoMap[row.id];
+        finalProducts[row.id] = sp;
+      });
+      // Local sobrescreve se for mais novo
+      Object.values(localPMap).forEach(p => {
+        const srv = finalProducts[p.id];
+        if (!srv || (p.updatedAt || 0) > (srv.updatedAt || 0)) {
+          finalProducts[p.id] = p;
         }
       });
 
-      const mergedSuppliers = {};
-      suppliers.forEach(s => { mergedSuppliers[s.id] = s; });
+      const localSMap = {};
+      suppliers.forEach(s => { localSMap[s.id] = s; });
+
+      const finalSuppliers = {};
       serverSuppliers.forEach(row => {
-        const ss = { ...row.data, id: row.id, deviceId: row.device_id,
-                     deviceName: row.device_name, updatedAt: row.updated_at,
-                     deleted: row.deleted };
-        const local = mergedSuppliers[row.id];
-        if (!local || row.updated_at >= (local.updatedAt || 0)) {
-          mergedSuppliers[row.id] = ss;
+        const d = row.data || {};
+        const ss = {
+          ...d,
+          id:         row.id,
+          deviceId:   row.device_id   || d.deviceId,
+          deviceName: row.device_name || d.deviceName,
+          updatedAt:  Number(row.updated_at) || d.updatedAt || 0,
+          deleted:    !!row.deleted
+        };
+        finalSuppliers[row.id] = ss;
+      });
+      Object.values(localSMap).forEach(s => {
+        const srv = finalSuppliers[s.id];
+        if (!srv || (s.updatedAt || 0) > (srv.updatedAt || 0)) {
+          finalSuppliers[s.id] = s;
         }
       });
 
-      products  = Object.values(mergedProducts);
-      suppliers = Object.values(mergedSuppliers);
+      products  = Object.values(finalProducts);
+      suppliers = Object.values(finalSuppliers);
       LS.set('cf_products',  products);
       LS.set('cf_suppliers', suppliers);
       pendingSync = false;
@@ -1652,7 +1688,7 @@
       if (currentView === 'suppliers') renderSuppliers();
 
     } catch (e) {
-      setSyncBar('error', 'Falha na conexao — ' + e.message);
+      setSyncBar('error', 'Falha: ' + e.message);
     }
   }
 
