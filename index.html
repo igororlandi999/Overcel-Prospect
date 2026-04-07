@@ -1576,6 +1576,23 @@
   const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiaWV0c2J4YnRwdHp3a2N6aGt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1Njc3MDgsImV4cCI6MjA5MTE0MzcwOH0.UGvGQ0j8JsgsaoXqJZgkNQnd77VaQp1O2MJAnvfTVEo';
   const SB_HDR  = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
 
+  async function sendProductEmail(p) {
+    const sup = suppliers.find(s => s.id === p.supplierId);
+    try {
+      await fetch(`${SB_URL}/functions/v1/rapid-task`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SB_KEY },
+        body: JSON.stringify({
+          product:       p,
+          supplierName:  sup?.supplierName  || '',
+          supplierBooth: sup?.booth         || ''
+        })
+      });
+    } catch (e) {
+      // silencioso — email é best-effort
+    }
+  }
+
   let products  = LS.get('cf_products')  || [];
   let suppliers = LS.get('cf_suppliers') || [];
 
@@ -2149,6 +2166,11 @@
         scheduleSync(); // sync faz upload da foto em background
         showToast('Produto salvo');
         navigate('home'); // navega IMEDIATAMENTE — não espera o upload
+
+        // Envia email só para produtos NOVOS (não edições)
+        if (!product) {
+          sendProductEmail(data).catch(() => {}); // fire-and-forget, não bloqueia
+        }
       } catch (err) {
         showToast('Erro ao salvar: ' + err.message);
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Salvar Produto'; }
