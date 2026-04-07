@@ -477,6 +477,12 @@
       transition: border-color .15s;
     }
 
+    /* Fix: options herdam cor do sistema — forçar fundo escuro */
+    select option {
+      background: #1e1e1e;
+      color: var(--text);
+    }
+
     input:focus, select:focus, textarea:focus { border-color: var(--accent); }
     textarea { resize: vertical; }
 
@@ -488,6 +494,38 @@
       font-size: 12px;
       text-align: left;
       padding: 0;
+    }
+
+    /* Mini-form inline de fornecedor */
+    .inline-supplier-form {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 10px;
+    }
+
+    .inline-supplier-form input {
+      font-size: 14px;
+    }
+
+    .inline-supplier-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-sm {
+      padding: 8px 14px;
+      font-size: 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-family: var(--font-head);
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
     }
 
     .radio-group, .checkbox-group {
@@ -1201,6 +1239,14 @@
               <option value="">Selecionar fornecedor...</option>
             </select>
             <button type="button" class="btn-link" id="btn-new-supplier-inline">+ Novo fornecedor</button>
+            <!-- Mini-form inline para adicionar fornecedor rapidamente -->
+            <div id="inline-supplier-form" class="inline-supplier-form hidden">
+              <input type="text" id="inline-supplier-name" placeholder="Nome do fornecedor" autocomplete="off" />
+              <div class="inline-supplier-actions">
+                <button type="button" class="btn-primary btn-sm" id="btn-inline-supplier-save">Adicionar</button>
+                <button type="button" class="btn-secondary btn-sm" id="btn-inline-supplier-cancel">Cancelar</button>
+              </div>
+            </div>
           </div>
           <div class="form-group">
             <label>Categoria</label>
@@ -1971,9 +2017,53 @@
       updateScore();
     }
 
-    // New supplier inline
+    // Novo fornecedor inline — mostra mini-form sem sair da tela
     document.getElementById('btn-new-supplier-inline').addEventListener('click', () => {
-      navigate('add-supplier');
+      document.getElementById('inline-supplier-form').classList.remove('hidden');
+      document.getElementById('btn-new-supplier-inline').classList.add('hidden');
+      document.getElementById('inline-supplier-name').focus();
+    });
+
+    document.getElementById('btn-inline-supplier-cancel').addEventListener('click', () => {
+      document.getElementById('inline-supplier-form').classList.add('hidden');
+      document.getElementById('btn-new-supplier-inline').classList.remove('hidden');
+      document.getElementById('inline-supplier-name').value = '';
+    });
+
+    document.getElementById('btn-inline-supplier-save').addEventListener('click', () => {
+      const name = document.getElementById('inline-supplier-name').value.trim();
+      if (!name) {
+        document.getElementById('inline-supplier-name').focus();
+        return;
+      }
+
+      // Cria fornecedor com só o nome — resto preenchido depois
+      const newSupplier = {
+        id:          genId(),
+        supplierName: name,
+        deviceId:    DEVICE_ID,
+        deviceName:  DEVICE_NAME,
+        updatedAt:   Date.now()
+      };
+
+      suppliers.push(newSupplier);
+      saveLocal();
+      scheduleSync();
+
+      // Adiciona ao select e seleciona
+      const sel = document.getElementById('supplier-select');
+      const opt = document.createElement('option');
+      opt.value = newSupplier.id;
+      opt.textContent = newSupplier.supplierName;
+      sel.appendChild(opt);
+      sel.value = newSupplier.id;
+
+      // Fecha o mini-form
+      document.getElementById('inline-supplier-form').classList.add('hidden');
+      document.getElementById('btn-new-supplier-inline').classList.remove('hidden');
+      document.getElementById('inline-supplier-name').value = '';
+
+      showToast(name + ' adicionado');
     });
 
     // Cancel
